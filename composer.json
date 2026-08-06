@@ -1,0 +1,30 @@
+{
+    "name": "nitrosearch/magento2-search",
+    "description": "Instant, typo-tolerant search for Magento Open Source, served by a dedicated hosted engine.",
+    "type": "magento2-module",
+    "license": "GPL-3.0-or-later",
+    "homepage": "https://nitrosearch.io",
+    "require": {
+        "php": "~8.1.0||~8.2.0||~8.3.0||~8.4.0||~8.5.0",
+        "ext-json": "*",
+        "magento/framework": ">=103.0.0",
+        "magento/module-store": ">=101.1.0",
+        "magento/module-catalog": ">=104.0.0",
+        "magento/module-backend": ">=102.0.0",
+        "magento/module-config": ">=101.2.0",
+        "magento/magento-composer-installer": "*"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "NitroSearch\\Search\\": "",
+            "NitroSearch\\Support\\": "lib/Support/",
+            "NitroSearch\\Sync\\": "lib/Sync/",
+            "NitroSearch\\Api\\": "lib/Api/",
+            "NitroSearch\\Storefront\\": "lib/Storefront/",
+            "NitroSearch\\": "lib/"
+        }
+    }
+}

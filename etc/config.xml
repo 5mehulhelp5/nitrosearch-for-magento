@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!--
+  A <default> for EVERY field the module reads.
+
+  A Magento config path with no default resolves to NULL, and the framework-free
+  `Settings` layer above it would then see '' where it expected a value — which is
+  indistinguishable from "the merchant cleared it". The defaults here mirror
+  `NitroSearch\Settings::$defaults`; that class remains the authority for what a
+  key MEANS, this file only guarantees the path resolves.
+
+  Credentials are absent from this list on purpose. `sync_secret` and
+  `scoped_search_key` are written by the connect flow and read back through the
+  encrypted backend model; giving them a default here would put an empty string
+  through the decryptor on every read.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/config.xsd">
+    <default>
+        <nitrosearch>
+            <credentials>
+                <api_url>https://api.nitrosearch.io</api_url>
+                <install_id/>
+                <site_url/>
+                <store_id/>
+                <sync_key_id/>
+                <connected>0</connected>
+                <verified>0</verified>
+                <!--
+                  Defaults TRUE, matching every other connector: an existing shop
+                  must never be silently switched off by an update. The widget opts
+                  out only on an explicit `cfg.analytics === false`, so this key
+                  existing at all is what makes declining possible — the OpenCart
+                  module shipped two releases without it and no layer let a
+                  merchant decline.
+                -->
+                <share_search_data>1</share_search_data>
+                <!-- Which store view is indexed. Empty means "not chosen yet", and
+                     the admin screen requires a choice rather than defaulting to
+                     the admin scope's 0. -->
+                <store_view_id/>
+            </credentials>
+        </nitrosearch>
+    </default>
+</config>

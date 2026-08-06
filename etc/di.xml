@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  One preference, deliberately.
+
+  `NitroSearch\Settings` lives in lib/ and is framework-free: it takes a
+  `SettingsStore` and knows nothing about Magento. This is the single line that
+  tells Magento's object manager which implementation to hand it. Everything else
+  in the module is constructor-injected concrete classes, which the compiler can
+  resolve without help.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="NitroSearch\SettingsStore"
+                type="NitroSearch\Search\Model\Settings\ConfigStore"/>
+</config>

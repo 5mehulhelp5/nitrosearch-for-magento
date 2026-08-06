@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!--
+  The PUBLIC front name. This is what makes `/nitrosearch/verify/index` reachable
+  on a merchant's storefront, and it is the single value in this module that
+  cannot be renegotiated later: NitroSearch fetches it on real merchants' servers
+  to prove hostname control, and a store installed against one path cannot be
+  told about another without re-verifying every shop in the fleet.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:App/etc/routes.xsd">
+    <router id="standard">
+        <route id="nitrosearch" frontName="nitrosearch">
+            <module name="NitroSearch_Search"/>
+        </route>
+    </router>
+</config>
