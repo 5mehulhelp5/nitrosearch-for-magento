@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+<!--
+  CHANGE DETECTION. This file is the reason this module is not a port of the other
+  three connectors.
+
+  WooCommerce, PrestaShop and OpenCart all hang change detection off a "product was
+  saved" hook. On Magento that approach does not fail — it DRIFTS, which is worse,
+  because a drifting index looks healthy. Every one of these changes what a shopper
+  sees with no product model saved and no save event dispatched:
+
+    catalog price rules      applied in bulk from cron; rewrites catalogrule_product_price
+    tier / group prices      written straight to catalog_product_entity_tier_price
+    MSI reservations         order placement writes inventory_reservation
+    bin/magento import       resource-level writes for speed; no per-row event
+    direct SQL, restores     invisible
+    store-view value edits   only the EAV value tables change
+    website (re)assignment   only catalog_product_website changes
+    category (re)assignment  only catalog_category_product changes — facets move,
+                             the product row does not
+
+  SO WE DECLARE OUR OWN VIEW rather than reusing one. Two rejected alternatives,
+  both of which look cheaper:
+
+  (a) Poll `updated_at`. Wrong in exactly the same ways — a catalogrule or category
+      write does not bump it — and it cannot represent a delete at all.
+
+  (b) Piggyback on `catalogsearch_fulltext_cl`. Tempting and a trap.
+      `indexer_clean_all_changelogs` runs every 5 minutes and clears rows below the
+      OWNING view's version pointer. The fulltext indexer would delete rows we had
+      not read yet: silent loss, on a five-minute cadence, invisible until a
+      merchant notices stale results.
+
+  `nitrosearch_product_cl` is OURS. Magento walks it from OUR `mview_state` row,
+  in batches, and trims only what we have consumed.
+
+  group="indexer" IS SUFFICIENT AND WE DECLARE NO INDEXER. `Mview\Processor::update()`
+  iterates views by group loaded from THIS FILE, not from the indexer registry, and
+  `indexer_update_all_views` runs it every minute. Declaring an indexer would put a
+  row in the merchant's Index Management screen that they can set to "Update on Save",
+  which would silently stop our subscription — a footgun with no upside.
+
+  THE COST OF THAT CHOICE, STATED: because we have no indexer,
+  `bin/magento indexer:set-mode schedule` cannot reach us, so the view has to be
+  subscribed explicitly. That is what `Setup\Patch\Schema\SubscribeMview` and
+  `bin/magento nitrosearch:subscribe` are for, and why `nitrosearch:status` reports
+  the subscription state rather than assuming it — a module whose triggers were never
+  created looks perfectly healthy and syncs nothing.
+
+  THE TABLE LIST IS INHERITED FROM CORE, NOT INVENTED. The first twelve are exactly
+  what `Magento_CatalogSearch`'s own mview.xml subscribes to, read out of the vendor
+  tree rather than from documentation: it is Magento's own answer to "what changes
+  what a search index must show", and deriving our own would be a worse version of a
+  question core has already answered.
+
+  TWO ARE ADDED DELIBERATELY, and both are additions to core's list rather than
+  copies of it — core's mview.xml does NOT carry either, which was checked rather
+  than assumed:
+
+    catalog_product_entity_tier_price  tier and customer-group prices, which mass
+                                       tooling writes directly and which change the
+                                       price a shopper is shown
+    cataloginventory_stock_item        MSI mirrors the default source into this
+                                       legacy table, which covers the single-source
+                                       case most Open Source stores actually run
+
+  Subscriptions carry an explicit `entity_column`, because the tables key the product
+  differently — `entity_id` on the entity and EAV tables, `product_id` on the link,
+  website, rule-price and stock tables. Getting one wrong does not error; it files
+  the WRONG id into the changelog, and the wrong product gets re-indexed while the
+  right one goes stale.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Mview/etc/mview.xsd">
+    <view id="nitrosearch_product" class="NitroSearch\Search\Model\Mview\Action" group="indexer">
+        <subscriptions>
+            <!-- The product itself: create, delete, status, visibility, type. -->
+            <table name="catalog_product_entity" entity_column="entity_id"/>
+
+            <!-- The five EAV value tables. A store-view name or description edit
+                 touches only these. -->
+            <table name="catalog_product_entity_datetime" entity_column="entity_id"/>
+            <table name="catalog_product_entity_decimal" entity_column="entity_id"/>
+            <table name="catalog_product_entity_int" entity_column="entity_id"/>
+            <table name="catalog_product_entity_text" entity_column="entity_id"/>
+            <table name="catalog_product_entity_varchar" entity_column="entity_id"/>
+
+            <!-- Composite membership. These fire with the CHILD's id, which is why
+                 the action fans out to parents — a configurable's price changes when
+                 a child's does, and the parent is what is indexed. -->
+            <table name="catalog_product_super_link" entity_column="product_id"/>
+            <table name="catalog_product_bundle_selection" entity_column="product_id"/>
+            <table name="catalog_product_link" entity_column="product_id"/>
+
+            <!-- Scope and facets. -->
+            <table name="catalog_product_website" entity_column="product_id"/>
+            <table name="catalog_category_product" entity_column="product_id"/>
+
+            <!-- Catalog price rules, applied with no product save — the case a
+                 save-hook module cannot see.
+
+                 MEASURED, AND IT IS PARTIAL COVERAGE. Both halves were run against
+                 a real 2.4.8 store rather than reasoned about:
+
+                   deleting 36 rule-price rows for 3 products
+                                                  -> 36 changelog rows. CAUGHT.
+                   a full `indexer:reindex catalogrule_rule` that restored those
+                   same 36 rows                   -> ZERO changelog rows. MISSED.
+
+                 So incremental rule changes reach us and a FULL RULE REINDEX does
+                 not: that path writes through a temporary table rather than row by
+                 row, and a trigger cannot see a write that never touches the live
+                 table. This subscription is still worth having — it is the
+                 difference between catching most rule activity and none — but it
+                 must not be described as complete coverage, and the README does not
+                 describe it that way.
+
+                 THE FULL WALK IS THE CORRECTNESS ARGUMENT, not this. That is the
+                 same stance the PrestaShop connector takes about its own long hook
+                 list, and this measurement is why it is the right one. -->
+            <table name="catalogrule_product_price" entity_column="product_id"/>
+
+            <!-- Added beyond core's list; see the header. -->
+            <table name="catalog_product_entity_tier_price" entity_column="entity_id"/>
+            <table name="cataloginventory_stock_item" entity_column="product_id"/>
+        </subscriptions>
+    </view>
+</config>

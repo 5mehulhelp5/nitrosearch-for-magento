@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!--
+  The outbox: what has changed and not yet been sent.
+
+  Same shape as the other three connectors' queue tables — object_type, object_id,
+  op, a millisecond-epoch `version` used as a last-write-wins clock, and status —
+  with one addition.
+
+  `store_id` IS IN THE UNIQUE KEY FROM DAY ONE even though v1 indexes a single store
+  view and nothing reads it yet ([D-055]). Magento has real scope, and adding a
+  column to a unique key later means a migration on a table that by then holds live
+  merchant state on every install. Carrying it now makes multi-store-view a backend
+  change rather than a module rewrite, and costs one integer column today.
+
+  `engine="innodb"` IS EXPLICIT. Declarative schema does not default it, and the
+  ON DUPLICATE KEY upsert the mview action relies on needs the unique index that a
+  MyISAM fallback would still give — but the transactional behaviour around the
+  drain would be silently different.
+-->
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="nitrosearch_outbox" resource="default" engine="innodb"
+           comment="NitroSearch pending catalogue changes">
+        <column xsi:type="int" name="id" unsigned="true" nullable="false" identity="true"/>
+        <column xsi:type="varchar" name="object_type" length="32" nullable="false" default="product"/>
+        <column xsi:type="int" name="object_id" unsigned="true" nullable="false"/>
+        <column xsi:type="varchar" name="op" length="16" nullable="false" default="upsert"/>
+        <column xsi:type="bigint" name="version" unsigned="true" nullable="false" default="0"
+                comment="ms epoch, last-write-wins clock"/>
+        <column xsi:type="varchar" name="status" length="16" nullable="false" default="pending"/>
+        <column xsi:type="int" name="store_id" unsigned="true" nullable="false" default="0"
+                comment="reserved for multi-store-view; v1 always 0"/>
+        <column xsi:type="int" name="attempts" unsigned="true" nullable="false" default="0"/>
+        <column xsi:type="timestamp" name="created_at" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="NITROSEARCH_OUTBOX_OBJECT">
+            <column name="object_type"/>
+            <column name="object_id"/>
+            <column name="store_id"/>
+        </constraint>
+        <index referenceId="NITROSEARCH_OUTBOX_STATUS" indexType="btree">
+            <column name="status"/>
+        </index>
+    </table>
+</schema>

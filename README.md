@@ -80,14 +80,21 @@ catalogue search index subscribes to. Magento's `indexer_update_all_views` cron 
 minute, and trims our changelog for us. It is Magento's own answer to "what changes what a search
 index must show", inherited rather than re-derived.
 
-Two things that mechanism still cannot see, stated plainly because you should know them:
+Three things that mechanism still cannot see, stated plainly because you should know them, and
+because the third was found by measuring rather than assuming:
 
 - **MSI reservations.** Magento core does not track them through Mview either; a product going out
   of stock purely because of pending orders surfaces on the next stock-status recompute.
 - **Writes that bypass triggers** — `TRUNCATE`, `LOAD DATA`, and replication-applied statements in
   some configurations.
+- **A *full* catalog-price-rule reindex.** Incremental rule activity is caught — deleting rule
+  prices for three products put all thirty-six affected rows in our changelog. But a full
+  `indexer:reindex catalogrule_rule` restored those same rows and our changelog saw **nothing**,
+  because that path builds through a temporary table and a trigger cannot see a write that never
+  touches the live one. We catch most rule activity, not all of it, and we would rather say so than
+  let you find out from a stale price.
 
-Neither is the correctness argument. **The periodic full walk is**, exactly as on the other
+None of the three is the correctness argument. **The periodic full walk is**, exactly as on the other
 connectors: it re-sends the whole catalogue on a schedule and does not depend on any signal firing.
 
 ## Support

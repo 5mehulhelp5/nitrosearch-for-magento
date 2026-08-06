@@ -12,4 +12,20 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="NitroSearch\SettingsStore"
                 type="NitroSearch\Search\Model\Settings\ConfigStore"/>
+
+    <!--
+      Console commands are registered through the CommandList, not discovered.
+      A command class that is not listed here simply does not exist as far as
+      `bin/magento` is concerned — it fails as "command not found", which points
+      at a typo rather than at a missing registration.
+    -->
+    <type name="Magento\Framework\Console\CommandList">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="nitrosearch_status" xsi:type="object">NitroSearch\Search\Console\Command\Status</item>
+                <item name="nitrosearch_subscribe" xsi:type="object">NitroSearch\Search\Console\Command\Subscribe</item>
+                <item name="nitrosearch_unsubscribe" xsi:type="object">NitroSearch\Search\Console\Command\Unsubscribe</item>
+            </argument>
+        </arguments>
+    </type>
 </config>
