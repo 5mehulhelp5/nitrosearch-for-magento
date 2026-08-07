@@ -1,0 +1,22 @@
+<?php
+/**
+ * Copyright (c) WebDeviAnt Studios.
+ *
+ * This source file is subject to the GNU General Public License v3.0 (GPL-3.0)
+ * that is bundled with this package in the file LICENSE.
+ *
+ * @var \NitroSearch\Search\Block\Storefront\Config $block
+ */
+
+$config = $block->getConfigJson();
+$loader = $block->getLoaderUrl();
+
+// HALF-FORMED IS WORSE THAN ABSENT. No key, no host, no collection, no assets — no
+// output at all. A connected-but-unverified store has no key yet, which is a normal
+// state, and emitting a partial blob gives the loader something to fail on.
+if ($config === '' || $loader === '') {
+    return;
+}
+?>
+<script type="application/json" id="nitrosearch-config"><?= /* @noEscape */ $config ?></script>
+<script src="<?= $block->escapeUrl($loader) ?>" async defer></script>

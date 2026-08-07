@@ -97,6 +97,22 @@ because the third was found by measuring rather than assuming:
 None of the three is the correctness argument. **The periodic full walk is**, exactly as on the other
 connectors: it re-sends the whole catalogue on a schedule and does not depend on any signal firing.
 
+## A note on caching
+
+Magento always has a full page cache, and your search key is renewed periodically. Pages carrying
+NitroSearch's configuration are tagged, so renewing the key re-renders exactly those pages and
+nothing else — we never flush your whole cache.
+
+If search ever stops working on a store the admin says is connected, the usual cause is a cached
+page holding a key that has since been renewed:
+
+```bash
+bin/magento nitrosearch:cache-invalidate
+```
+
+That clears only the affected pages. Reach for it before `cache:flush`, which on a busy store sends
+every visitor to your PHP workers at once.
+
 ## Support
 
 Issues and questions: <https://github.com/NitroSearch/nitrosearch-for-magento/issues>

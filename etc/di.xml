@@ -27,6 +27,25 @@
                 <item name="nitrosearch_unsubscribe" xsi:type="object">NitroSearch\Search\Console\Command\Unsubscribe</item>
                 <item name="nitrosearch_serialize" xsi:type="object">NitroSearch\Search\Console\Command\Serialize</item>
                 <item name="nitrosearch_drain" xsi:type="object">NitroSearch\Search\Console\Command\DrainCommand</item>
+                <item name="nitrosearch_cache_invalidate" xsi:type="object">NitroSearch\Search\Console\Command\CacheInvalidate</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!--
+      The runtime CSP collector. Registered with a sortOrder above the static
+      whitelist collector so this store's own engine host is added after the static
+      hosts rather than instead of them.
+    -->
+    <type name="Magento\Csp\Model\Collector\CspWhitelistXmlCollector">
+        <arguments>
+            <argument name="sortOrder" xsi:type="number">10</argument>
+        </arguments>
+    </type>
+    <type name="Magento\Csp\Model\CompositePolicyCollector">
+        <arguments>
+            <argument name="collectors" xsi:type="array">
+                <item name="nitrosearch_engine_host" xsi:type="object" sortOrder="50">NitroSearch\Search\Model\CspPolicy</item>
             </argument>
         </arguments>
     </type>

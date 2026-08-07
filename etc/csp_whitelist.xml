@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!--
+  Content Security Policy.
+
+  Storefront CSP ships REPORT-ONLY by default, so nothing here breaks a stock store —
+  but Hyvä's strict-CSP theme and any merchant who has switched to restrict mode will
+  block the widget outright, and the symptom is a search box that simply does nothing
+  with an error only in the browser console.
+
+  ONLY THE CDN IS STATIC. The Typesense engine host is per-store configuration and
+  cannot live in a static XML file: a whitelist that named one host would be wrong for
+  every store on another. `connect-src` for the engine is added at runtime instead —
+  see Model\CspPolicy — which is the mechanism Magento provides for exactly this.
+
+  The config blob is a `<script type="application/json">` element rather than an
+  inline script precisely so it needs no inline-script allowance: JSON in a
+  non-executable type is data, not code, and CSP treats it as such.
+-->
+<csp_whitelist xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Csp:etc/csp_whitelist.xsd">
+    <policies>
+        <policy id="script-src">
+            <values>
+                <value id="nitrosearch_cdn" type="host">cdn.nitrosearch.io</value>
+            </values>
+        </policy>
+        <policy id="connect-src">
+            <values>
+                <value id="nitrosearch_api" type="host">api.nitrosearch.io</value>
+            </values>
+        </policy>
+    </policies>
+</csp_whitelist>

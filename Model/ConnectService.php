@@ -37,15 +37,18 @@ class ConnectService
     private Settings $settings;
     private Outbox $outbox;
     private StoreManagerInterface $storeManager;
+    private CacheTag $cacheTag;
 
     public function __construct(
         Settings $settings,
         Outbox $outbox,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        CacheTag $cacheTag
     ) {
         $this->settings = $settings;
         $this->outbox = $outbox;
         $this->storeManager = $storeManager;
+        $this->cacheTag = $cacheTag;
     }
 
     /**
@@ -119,6 +122,14 @@ class ConnectService
 
         if (!empty($verification['verified'])) {
             $client->fetchSearchKey();
+
+            // THE KEY JUST CHANGED, SO THE CACHED PAGES CARRYING THE OLD ONE ARE NOW
+            // WRONG. This call is the other half of the cache tag on
+            // `Block\Storefront\Config`; without it that tag is decoration and a
+            // shopper on a cached page keeps querying with a dead key. It belongs
+            // next to the write rather than in a sweep, because a sweep might not
+            // have run yet when the next shopper arrives.
+            $this->cacheTag->invalidate();
         }
 
         $client->status();

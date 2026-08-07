@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!--
+  ONE FILE SERVES LUMA, HYVÄ AND CUSTOM THEMES.
+
+  Module layout XML is theme-independent, and `head.additional` exists in Hyvä as
+  well as Luma — so the widget is injected once here rather than per theme. That is
+  what keeps two permanent storefront themes from becoming two of everything.
+
+  NOTE WHAT IS ABSENT: there is no `cacheable="false"` on this block, and there must
+  never be. On `default.xml` that attribute disables the full page cache for EVERY
+  page of the store. The key-rotation problem it looks like a fix for is solved by
+  the cache tag on the block instead — see Block\Storefront\Config.
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <!--
+      `head.additional` IS REFERENCED FROM <body>, NOT DECLARED INSIDE <head>.
+
+      This is not a style choice and getting it wrong is not a soft failure. The
+      page_configuration schema allows only title, css, link, meta, script, remove,
+      attribute and font inside <head> — a <block> there fails XSD validation, and
+      Magento's response to an invalid layout is to render an EXCEPTION PAGE FOR THE
+      WHOLE STORE. Every page, not just this one. It was found here by noticing a
+      7,405-byte "storefront" where a 200KB one belonged; the blob was correctly
+      absent from it, which is exactly how a broken check reads as a passing one.
+
+      `head.additional` is a BLOCK, not a container — `View\Result\Page` fetches it
+      with `getLayout()->getBlock('head.additional')` and renders its html into the
+      head. So it is referenced with `referenceBlock`. Using `referenceContainer` on
+      it is a SILENT NO-OP: the layout validates, the page renders perfectly, and the
+      block simply never appears. That cost a second round of debugging here, after
+      the first one had already been blamed on caching.
+    -->
+    <body>
+        <referenceBlock name="head.additional">
+            <block class="NitroSearch\Search\Block\Storefront\Config"
+                   name="nitrosearch.config"
+                   template="NitroSearch_Search::storefront/config.phtml"/>
+        </referenceBlock>
+    </body>
+</page>
