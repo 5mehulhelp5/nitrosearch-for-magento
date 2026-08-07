@@ -24,7 +24,8 @@
             "NitroSearch\\Sync\\": "lib/Sync/",
             "NitroSearch\\Api\\": "lib/Api/",
             "NitroSearch\\Storefront\\": "lib/Storefront/",
-            "NitroSearch\\": "lib/"
+            "NitroSearch\\": "lib/",
+            "NitroSearch\\AdapterKit\\": "vendor-contract/src/"
         }
     }
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!--
+  OUR OWN CRON GROUP, not `default`.
+
+  A group gets its own schedule_generate_every and history retention, and — the part
+  that matters — its own process. Sharing `default` means our drain queues behind
+  whatever else a merchant has installed there, and a slow neighbour delays search
+  freshness for reasons no one can see from our side.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+    <group id="nitrosearch">
+        <job name="nitrosearch_drain" instance="NitroSearch\Search\Cron\DrainJob" method="execute">
+            <schedule>*/5 * * * *</schedule>
+        </job>
+    </group>
+</config>

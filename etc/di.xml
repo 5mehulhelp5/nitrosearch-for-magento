@@ -25,6 +25,8 @@
                 <item name="nitrosearch_status" xsi:type="object">NitroSearch\Search\Console\Command\Status</item>
                 <item name="nitrosearch_subscribe" xsi:type="object">NitroSearch\Search\Console\Command\Subscribe</item>
                 <item name="nitrosearch_unsubscribe" xsi:type="object">NitroSearch\Search\Console\Command\Unsubscribe</item>
+                <item name="nitrosearch_serialize" xsi:type="object">NitroSearch\Search\Console\Command\Serialize</item>
+                <item name="nitrosearch_drain" xsi:type="object">NitroSearch\Search\Console\Command\DrainCommand</item>
             </argument>
         </arguments>
     </type>

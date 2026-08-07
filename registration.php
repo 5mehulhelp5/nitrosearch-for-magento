@@ -43,6 +43,11 @@ if (!class_exists(\NitroSearch\Support\Hmac::class, false)) {
             'NitroSearch\\Sync\\' => __DIR__ . '/lib/Sync/',
             'NitroSearch\\Api\\' => __DIR__ . '/lib/Api/',
             'NitroSearch\\Storefront\\' => __DIR__ . '/lib/Storefront/',
+            // The vendored contract kit — the ONE sanctioned crossing from the
+            // private repo, generated there to be read by an outsider. It builds the
+            // wire item so the shapes that go wrong (a price without its exponent,
+            // variants as top-level items, a missing `visible`) cannot be expressed.
+            'NitroSearch\\AdapterKit\\' => __DIR__ . '/vendor-contract/src/',
         ];
 
         foreach ($prefixes as $prefix => $dir) {
