@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  The ADMIN front name, separate from the storefront one in etc/frontend/routes.xml.
+  Magento keeps the two routers apart, so a module that serves both needs both — and
+  the admin router additionally requires the secret key on every URL, which is what
+  makes these actions safe to be state-changing.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:App/etc/routes.xsd">
+    <router id="admin">
+        <route id="nitrosearch" frontName="nitrosearch">
+            <module name="NitroSearch_Search"/>
+        </route>
+    </router>
+</config>

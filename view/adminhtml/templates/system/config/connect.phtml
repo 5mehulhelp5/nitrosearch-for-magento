@@ -1,0 +1,79 @@
+<?php
+/**
+ * Copyright (c) WebDeviAnt Studios.
+ *
+ * This source file is subject to the GNU General Public License v3.0 (GPL-3.0)
+ * that is bundled with this package in the file LICENSE.
+ *
+ * @var \NitroSearch\Search\Block\Adminhtml\System\Config\Connect $block
+ *
+ * EVERY VALUE IS ESCAPED. Nothing here is a credential — the block reads only
+ * public values — but a store reference and an error message both come back from a
+ * remote service, and a service response rendered raw into an admin page is a stored
+ * XSS with extra steps.
+ */
+?>
+<div class="nitrosearch-connect">
+    <?php if ($block->isConnected()): ?>
+        <p>
+            <strong><?= $block->escapeHtml(__('Connected')) ?></strong>
+            <?php if ($block->getStoreRef() !== ''): ?>
+                — <?= $block->escapeHtml(__('store %1', $block->getStoreRef())) ?>
+            <?php endif; ?>
+        </p>
+
+        <?php if ($block->isVerified()): ?>
+            <p><?= $block->escapeHtml(__('Verified. Your catalogue is syncing.')) ?></p>
+        <?php else: ?>
+            <p>
+                <?= $block->escapeHtml(__(
+                    'Connected but not yet verified. This is normal on a local, staging or '
+                    . 'password-protected site — we have to be able to reach your storefront from '
+                    . 'the outside. Fix the hosting, then press Check again.'
+                )) ?>
+            </p>
+        <?php endif; ?>
+
+        <?php if ($block->getLastSync() !== ''): ?>
+            <p><?= $block->escapeHtml(__('Last sync: %1', $block->getLastSync())) ?></p>
+        <?php endif; ?>
+
+        <?php if ($block->getLastError() !== ''): ?>
+            <p class="message message-warning">
+                <?= $block->escapeHtml(__('Last error: %1', $block->getLastError())) ?>
+            </p>
+        <?php endif; ?>
+
+        <button type="button" class="action-default"
+                onclick="window.location.href='<?= $block->escapeUrl($block->getActionUrl('verify')) ?>'">
+            <?= $block->escapeHtml(__('Check verification')) ?>
+        </button>
+
+        <button type="button" class="action-default"
+                onclick="window.location.href='<?= $block->escapeUrl($block->getActionUrl('fullsync')) ?>'">
+            <?= $block->escapeHtml(__('Re-send whole catalogue')) ?>
+        </button>
+
+        <button type="button" class="action-default"
+                onclick="if (confirm('<?= $block->escapeJs(__('Disconnect and delete this store\'s credentials?')) ?>')) { window.location.href='<?= $block->escapeUrl($block->getActionUrl('disconnect')) ?>'; }">
+            <?= $block->escapeHtml(__('Disconnect')) ?>
+        </button>
+    <?php else: ?>
+        <p>
+            <?= $block->escapeHtml(__(
+                'Not connected. Choose the store view to index, save, then connect.'
+            )) ?>
+        </p>
+
+        <?php if ($block->getLastError() !== ''): ?>
+            <p class="message message-error">
+                <?= $block->escapeHtml(__('Last attempt: %1', $block->getLastError())) ?>
+            </p>
+        <?php endif; ?>
+
+        <button type="button" class="action-default primary"
+                onclick="window.location.href='<?= $block->escapeUrl($block->getActionUrl('connect')) ?>'">
+            <?= $block->escapeHtml(__('Connect this store')) ?>
+        </button>
+    <?php endif; ?>
+</div>

@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<!--
+  Stores → Configuration → Services → NitroSearch.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="nitrosearch" translate="label" type="text" sortOrder="400"
+                 showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>NitroSearch</label>
+            <tab>service</tab>
+            <resource>NitroSearch_Search::config</resource>
+
+            <group id="general" translate="label" type="text" sortOrder="10" showInDefault="1">
+                <label>Connection</label>
+
+                <!--
+                  THE BUTTONS ARE A FIELD WITH A frontend_model, which is the only way
+                  to put an action into a config section. Magento's config form posts
+                  the whole section; a button that merely submitted it could not
+                  report what happened, so this renders its own control and posts to
+                  the admin controller directly.
+                -->
+                <field id="status" translate="label" sortOrder="5" showInDefault="1">
+                    <label>Status</label>
+                    <frontend_model>NitroSearch\Search\Block\Adminhtml\System\Config\Connect</frontend_model>
+                </field>
+
+                <!--
+                  REQUIRED, WITH NO SILENT DEFAULT ([D-055]). v1 indexes one store
+                  view, and defaulting to admin scope (0) would index a scope with no
+                  base URL and no currency — permalinks to nowhere and prices in
+                  whatever the admin happens to carry. Making the merchant choose is
+                  the honest version of a limitation we have.
+                -->
+                <field id="store_view_id" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1" canRestore="0">
+                    <label>Store view to index</label>
+                    <source_model>Magento\Config\Model\Config\Source\Store</source_model>
+                    <config_path>nitrosearch/credentials/store_view_id</config_path>
+                    <comment><![CDATA[
+                        <strong>NitroSearch v1 indexes one store view.</strong> Products, prices and
+                        text from other store views are not indexed. If you run several websites on
+                        separate domains you can connect each one as its own NitroSearch store;
+                        several store views on one domain are not yet supported.
+                    ]]></comment>
+                </field>
+
+                <field id="api_url" translate="label comment" type="text" sortOrder="20"
+                       showInDefault="1">
+                    <label>API endpoint</label>
+                    <config_path>nitrosearch/credentials/api_url</config_path>
+                    <comment>Leave as the default unless NitroSearch support asks you to change it.</comment>
+                </field>
+            </group>
+
+            <group id="storefront" translate="label" type="text" sortOrder="20" showInDefault="1">
+                <label>Storefront</label>
+
+                <!--
+                  SHIPS IN 1.0.0, NOT LATER. The widget opts out of analytics only on
+                  an explicit `cfg.analytics === false`; an absent key is `undefined`,
+                  which is not false. So without this toggle there is no layer at
+                  which a merchant can decline — which is exactly the state the
+                  OpenCart module shipped two releases in, and why a build guard now
+                  exists for it. Defaults ON, so an existing store is never silently
+                  switched off by an update.
+                -->
+                <field id="share_search_data" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1">
+                    <label>Share anonymous search data</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <config_path>nitrosearch/credentials/share_search_data</config_path>
+                    <comment>
+                        Sends anonymous search terms and result counts so your dashboard can show
+                        what shoppers look for. No personal data, no shopper identifiers. Turn this
+                        off and the storefront widget stops reporting entirely.
+                    </comment>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
