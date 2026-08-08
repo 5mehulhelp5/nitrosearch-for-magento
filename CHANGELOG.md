@@ -40,6 +40,14 @@ reach, which is the bar every other NitroSearch connector was released against.
 - **Automatic trigger management** — created on connect, removed on disconnect, and
   re-asserted on every `setup:upgrade` for a connected store.
 - **Ten release guards**, each of which must fail on purpose before the build trusts it.
+- **Units sold and your own filter attributes**, closing the last two field gaps against the
+  WooCommerce, PrestaShop and OpenCart connectors. Facets are the attributes you marked *Use in
+  Layered Navigation* — Magento's own answer, so adding an attribute adds it to search and no list
+  here goes stale. Popularity comes from Magento's bestseller figures, and a store that has never
+  run the sales aggregation sends none rather than zero for everything.
+- **A contributor guide, a release guide and continuous integration**, matching the other three
+  connectors. Every push and pull request runs the unit cases and the full package validation across
+  PHP 8.1–8.4.
 - **`nitrosearch:status` reports your page-cache posture**, because one setting decides whether a
   search-key renewal can reach your edge at all. Magento sends purges only to `http_cache_hosts` in
   `app/etc/env.php`; with Varnish in front and that key unset, the origin re-renders and the edge

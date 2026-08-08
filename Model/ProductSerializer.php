@@ -129,6 +129,8 @@ class ProductSerializer
         $categories = $this->categoryNames($indexableIds, $store);
         $inStock = $this->stockStatuses($indexableIds, $skus, $store);
         $variants = $this->variants($indexableIds, $store);
+        $popularity = $this->popularity($indexableIds, $store);
+        $facets = $this->facetAttributes($indexableIds, $store);
 
         $currency = (string) $store->getCurrentCurrencyCode();
 
@@ -197,6 +199,17 @@ class ProductSerializer
 
             if (!empty($categories[$id])) {
                 $builder->categories($categories[$id]);
+            }
+
+            // ABSENT, NOT ZERO, when the store has no sales aggregation — see
+            // popularity(). A zero would rank every product as equally unpopular and
+            // read like data.
+            if (isset($popularity[$id])) {
+                $builder->popularity($popularity[$id]);
+            }
+
+            foreach ($facets[$id] ?? [] as $label => $values) {
+                $builder->attribute($label, $values);
             }
 
             foreach ($variants[$id] ?? [] as $variant) {
@@ -817,6 +830,297 @@ class ProductSerializer
         }
 
         return $out;
+    }
+
+    /**
+     * Units sold, from Magento's own bestseller aggregation — and ABSENT when there
+     * is none.
+     *
+     * WHY NOT `sales_order_item`, WHICH IS THE OBVIOUS PLACE. It has no index on
+     * `product_id` (checked: PRIMARY, order_id, store_id, and nothing else), so a
+     * `WHERE product_id IN (…)` is a full scan of every order line the store has ever
+     * taken. Running that on each sync batch is the shape of defect that gets a
+     * merchant's database into trouble on exactly the stores where it matters most.
+     * `sales_bestsellers_aggregated_yearly` is small, is indexed on `product_id`, and
+     * is what Magento's own bestseller reports read.
+     *
+     * **A STORE WITH NO AGGREGATION SENDS NO POPULARITY AT ALL, NOT ZERO.** The table
+     * is filled by the daily sales-aggregation cron, and a store that has never run it
+     * has an empty table — measured on the sandbox, which had five real orders and
+     * zero rows. Sending 0 for everything would rank the whole catalogue as equally
+     * unpopular, which is not a fact about the catalogue; it is a fact about the cron.
+     * The wire reads an absent `popularity_score` as 0 anyway, so nothing downstream
+     * changes — what changes is that we are not the ones asserting it.
+     *
+     * Matches WooCommerce, which sends `get_total_sales()` — units sold, not views.
+     * OpenCart sends views because it has no units-sold figure without joining orders.
+     *
+     * @param int[] $ids
+     *
+     * @return array<int, int>
+     */
+    private function popularity(array $ids, StoreInterface $store): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $connection = $this->resource->getConnection();
+        $table = $this->resource->getTableName('sales_bestsellers_aggregated_yearly');
+
+        if (!$connection->isTableExists($table)) {
+            return [];
+        }
+
+        try {
+            // STORE 0 IS A ROLLUP OF THE OTHERS, NOT A PEER. Magento writes both a
+            // store-scoped row and an all-stores row for the same sale, so summing
+            // across the two reports every product as having sold TWICE what it did —
+            // measured: a bag with 3 real units came back as 6. The store's own row
+            // wins where it exists; the rollup is the fallback for an install whose
+            // reports are configured the other way.
+            $rows = $connection->fetchAll(
+                $connection->select()
+                    ->from($table, ['product_id', 'store_id', 'sold' => 'SUM(qty_ordered)'])
+                    ->where('product_id IN (?)', $ids)
+                    ->where('store_id IN (?)', [0, (int) $store->getId()])
+                    ->group(['product_id', 'store_id'])
+            );
+
+            $scoped = [];
+            $rollup = [];
+
+            foreach ($rows as $row) {
+                $productId = (int) $row['product_id'];
+                $sold = (int) round((float) $row['sold']);
+
+                if ((int) $row['store_id'] === 0) {
+                    $rollup[$productId] = $sold;
+                } else {
+                    $scoped[$productId] = $sold;
+                }
+            }
+
+            return $scoped + $rollup;
+        } catch (\Throwable $e) {
+            // A reporting table is not worth failing a catalogue sync over.
+            return [];
+        }
+    }
+
+    /**
+     * Facetable attributes, from the ones the merchant marked filterable.
+     *
+     * THE SAME SHAPE AS THE VISIBILITY RULE ([D-054]): ask Magento's own answer rather
+     * than inventing one. `catalog_eav_attribute.is_filterable` and
+     * `is_filterable_in_search` are how a merchant says "this belongs in layered
+     * navigation", they already maintain them, and the set adapts per store without
+     * this module holding a list. Measured on Magento's own sample data: 23 attributes
+     * qualify — colour, size, material, activity, gender and so on.
+     *
+     * SELECT-LIKE INPUTS ONLY, and that is not a narrowing. Magento offers layered
+     * navigation on nothing else, because a facet over free text is thousands of
+     * values with one product each. `price` is excluded too: it is already a first
+     * class field on the wire and a duplicate facet would disagree with it.
+     *
+     * LABELS AND OPTION LABELS, never ids — the wire says attribute VALUES are not
+     * normalised, so what is sent is what a shopper reads. A facet reading "93" is
+     * worse than no facet.
+     *
+     * @param int[] $ids
+     *
+     * @return array<int, array<string, array<int, string>>>
+     */
+    private function facetAttributes(array $ids, StoreInterface $store): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $connection = $this->resource->getConnection();
+        $storeId = (int) $store->getId();
+
+        $attributes = $connection->fetchAll(
+            $connection->select()
+                ->from(['a' => $this->resource->getTableName('eav_attribute')], ['attribute_id', 'attribute_code', 'backend_type', 'frontend_input', 'frontend_label'])
+                ->join(
+                    ['c' => $this->resource->getTableName('catalog_eav_attribute')],
+                    'c.attribute_id = a.attribute_id',
+                    []
+                )
+                ->join(
+                    ['t' => $this->resource->getTableName('eav_entity_type')],
+                    't.entity_type_id = a.entity_type_id',
+                    []
+                )
+                ->columns(['label' => 'IFNULL(NULLIF(al.value, \'\'), IFNULL(NULLIF(a.frontend_label, \'\'), a.attribute_code))'])
+                ->joinLeft(
+                    ['al' => $this->resource->getTableName('eav_attribute_label')],
+                    'al.attribute_id = a.attribute_id AND al.store_id = ' . $storeId,
+                    []
+                )
+                ->where('t.entity_type_code = ?', 'catalog_product')
+                ->where('c.is_filterable > 0 OR c.is_filterable_in_search = 1')
+                ->where('a.frontend_input IN (?)', ['select', 'multiselect', 'boolean'])
+                ->where('a.attribute_code NOT IN (?)', ['price', 'status', 'visibility', 'tax_class_id'])
+        );
+
+        if ($attributes === []) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach ($attributes as $attribute) {
+            $label = $this->plainText((string) $attribute['label']);
+
+            if ($label === '') {
+                continue;
+            }
+
+            // THE BACKEND TYPE PICKS THE TABLE, AND IT IS NOT THE FRONTEND INPUT.
+            // A `multiselect` is stored as **`text`**, not varchar — measured, after a
+            // first version mapped everything non-varchar to `int` and returned NOTHING
+            // for the bags, whose activity, material and features are all multiselects.
+            $backend = (string) $attribute['backend_type'];
+
+            if (!in_array($backend, ['int', 'varchar', 'text'], true)) {
+                continue;
+            }
+
+            $table = $this->resource->getTableName('catalog_product_entity_' . $backend);
+            $values = $this->attributeValuesFrom($ids, (int) $attribute['attribute_id'], $table, $storeId);
+
+            if ($values === []) {
+                continue;
+            }
+
+            // A BOOLEAN STORES 0/1, NOT AN OPTION ID, and joining those to the option
+            // table is how "Erin Recommends: Male" happened — option id 1 belongs to
+            // `gender`. Magento's own layered navigation shows a yes/no attribute as
+            // its label with Yes; a 0 is not a facet value, it is the absence of one.
+            if ((string) $attribute['frontend_input'] === 'boolean') {
+                foreach ($values as $productId => $raw) {
+                    if ((string) reset($raw) === '1') {
+                        $out[$productId][$label] = ['Yes'];
+                    }
+                }
+
+                continue;
+            }
+
+            $labels = $this->optionLabels(
+                array_merge(...array_values($values)),
+                (int) $attribute['attribute_id'],
+                $storeId
+            );
+
+            foreach ($values as $productId => $optionIds) {
+                $resolved = [];
+
+                foreach ($optionIds as $optionId) {
+                    $text = $labels[$optionId] ?? null;
+
+                    if ($text !== null && $text !== '' && !in_array($text, $resolved, true)) {
+                        $resolved[] = $text;
+                    }
+                }
+
+                if ($resolved !== []) {
+                    $out[$productId][$label] = $resolved;
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Raw option ids per product for one attribute, store row winning.
+     *
+     * A multiselect stores its option ids as a COMMA-SEPARATED varchar, which is why
+     * this splits rather than casting. A select stores one int.
+     *
+     * @param int[] $ids
+     *
+     * @return array<int, array<int, string>>
+     */
+    private function attributeValuesFrom(array $ids, int $attributeId, string $table, int $storeId): array
+    {
+        $connection = $this->resource->getConnection();
+
+        $select = $connection->select()
+            ->from(['d' => $table], ['entity_id'])
+            ->columns(['value' => 'IFNULL(s.value, d.value)'])
+            ->joinLeft(
+                ['s' => $table],
+                's.entity_id = d.entity_id AND s.attribute_id = d.attribute_id AND s.store_id = ' . $storeId,
+                []
+            )
+            ->where('d.entity_id IN (?)', $ids)
+            ->where('d.attribute_id = ?', $attributeId)
+            ->where('d.store_id = ?', 0);
+
+        $out = [];
+
+        foreach ($connection->fetchPairs($select) as $productId => $value) {
+            $parts = array_filter(array_map('trim', explode(',', (string) $value)), static fn ($v) => $v !== '');
+
+            if ($parts !== []) {
+                $out[(int) $productId] = array_values($parts);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Option ids to their store-scoped labels, admin label as the fallback.
+     *
+     * CONSTRAINED TO THE OWNING ATTRIBUTE. Option ids are globally unique across all
+     * attributes, so an unconstrained lookup silently resolves one attribute's value
+     * through another's options whenever a raw value happens to collide with a real
+     * option id — which is exactly what a boolean's 0/1 does.
+     *
+     * @param array<int, string> $optionIds
+     *
+     * @return array<string, string>
+     */
+    private function optionLabels(array $optionIds, int $attributeId, int $storeId): array
+    {
+        $optionIds = array_values(array_unique($optionIds));
+
+        if ($optionIds === []) {
+            return [];
+        }
+
+        $connection = $this->resource->getConnection();
+        $table = $this->resource->getTableName('eav_attribute_option_value');
+
+        $select = $connection->select()
+            ->from(['d' => $table], ['option_id'])
+            ->columns(['label' => 'IFNULL(s.value, d.value)'])
+            ->joinLeft(
+                ['s' => $table],
+                's.option_id = d.option_id AND s.store_id = ' . $storeId,
+                []
+            )
+            ->join(
+                ['o' => $this->resource->getTableName('eav_attribute_option')],
+                'o.option_id = d.option_id AND o.attribute_id = ' . $attributeId,
+                []
+            )
+            ->where('d.option_id IN (?)', $optionIds)
+            ->where('d.store_id = ?', 0);
+
+        // ENTITY-DECODED, because an option label is authored in the admin's rich
+        // editor and Magento stores what was typed. `CoolTech&trade;` is a real value
+        // in Magento's own sample data, and a facet chip reading "CoolTech&trade;" is
+        // a bug a shopper sees. The other connectors decode for the same reason.
+        return array_map(
+            fn ($label) => $this->plainText((string) $label),
+            $connection->fetchPairs($select)
+        );
     }
 
     /**

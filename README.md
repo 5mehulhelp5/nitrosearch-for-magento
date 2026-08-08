@@ -150,16 +150,22 @@ actually paid for them — discounts subtracted, shipping and tax excluded. A co
 counts once, at the parent line that carries the price, never twice. Anything else in the same
 basket is not counted, however it got there.
 
-## What is indexed, and one thing that is not
+## What is indexed
 
 Each product sends its name, SKU, price, stock status, image, description, categories, brand
-(where you use `manufacturer`), sale status, and — for a configurable — every variation's SKU,
-price, stock and option values, so a shopper can search a variation code and find the parent.
+(where you use `manufacturer`), sale status, units sold, your filterable attributes, and — for a
+configurable — every variation's SKU, price, stock and option values, so a shopper can search a
+variation code and find the parent.
 
-**Popularity is not sent.** Magento Open Source has no ordering signal available without the
-reports aggregation cron, and a store that has never run it would report every product as equally
-unpopular — a silent zero that looks like data. Relevance is name, SKU, description, categories
-and brand.
+**Your filters are your filters.** The attributes that become search facets are the ones you
+marked *Use in Layered Navigation* — colour, size, material, whatever your catalogue uses. We do
+not keep a list of our own, so adding an attribute in Magento adds it to search, and a facet chip
+shows the option label a shopper reads, not an internal id.
+
+**Units sold comes from Magento's own bestseller figures**, so it matches what your reports say. A
+store that has never run the sales aggregation sends no popularity at all rather than zero for
+everything — a zero would rank your whole catalogue as equally unpopular, which is a fact about
+the cron, not about your products.
 
 **Stock comes from the stock your website is assigned to.** With Multi-Source Inventory that is
 the stock resolved from your website's sales channel; without it, Magento's own stock index.
@@ -203,6 +209,42 @@ Page cache
   purge hosts   : varnish:80
   key rotation  : purges the built-in cache AND those hosts
 ```
+
+## Privacy
+
+The module sends your catalogue — the same product data your shoppers already see — and nothing
+else. It does not send customer records, addresses, payment details or order contents.
+
+**Prices are sent exactly as your store computes them**, from Magento's own price index, for the
+NOT LOGGED IN customer group. NitroSearch performs no tax calculation of any kind; it indexes and
+shows the number you send, so what a shopper sees in search matches your product page.
+
+**Search usage, and how to turn it off.** The storefront search panel reports anonymous usage —
+what was searched for, what was clicked, and whether a search found nothing — so your NitroSearch
+dashboard can show which searches work and which end in a dead end. It is not tied to a person: no
+names, no email addresses, no accounts, no cookies. **Stores → Configuration → Services →
+NitroSearch → Share anonymous search data** turns it off, and your storefront search keeps working
+exactly as before; the dashboard simply stops filling in.
+
+That switch also governs revenue attribution: a store that has declined usage sharing has its
+orders left alone too.
+
+## Building from source
+
+```bash
+php tests/run.php          # the framework-free unit cases
+./bin/build-module.sh      # lints everything shipped, runs every guard, builds the archive
+```
+
+The build lints every file it would ship, validates the XML, and runs each self-testing guard in
+`bin/` — each of which is made to fail on the exact defect it exists for before the build believes
+it. The archive it produces is for people; Composer installs from the git tag.
+
+## Contributing
+
+Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The one
+structural rule is that `lib/` is shared byte-identically with the other NitroSearch connectors, so
+a change there is a change to four of them.
 
 ## Support
 

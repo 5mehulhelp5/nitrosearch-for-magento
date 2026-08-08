@@ -43,17 +43,18 @@ pass() { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
 # Fields the serializer deliberately does not send, each with the reason it is a
 # decision rather than an oversight. Anything not here must be used.
 #
-#   popularity  — Magento Open Source has no cheap popularity signal: bestsellers
-#                 need the reports cron aggregating, and a store that has never run
-#                 it would get a silent zero indistinguishable from an unpopular
-#                 catalogue. Declared as a gap in the README instead of faked.
 #   variant     — used, but through the `variants()` helper rather than a literal
 #                 `->variant(` in the main chain; matched separately below.
-#   attribute   — facets arrive folded in from variant attributes, which is the
-#                 wire's documented behaviour; a parent has no separate facet set.
 #   excerpt     — content-only. This connector indexes products.
 #   publishedAt — content-only, same reason.
-EXCLUDED="popularity attribute excerpt publishedAt"
+#
+# `popularity` and `attribute` were both on this list and have been TAKEN OFF IT. Both were
+# excluded with reasons that sounded fine — no cheap sales signal, facets arrive folded
+# in from variants — and both were wrong: Magento's own bestseller aggregation is
+# indexed and cheap (absent rather than zero when a store has never run it), and a
+# simple product has filterable attributes that no variant can carry. An exclusion is a
+# claim, and this list is where claims go to be re-read.
+EXCLUDED="excerpt publishedAt"
 
 # Builder mechanics rather than wire fields.
 MECHANICS="product content delete version toArray"

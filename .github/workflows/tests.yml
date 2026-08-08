@@ -1,0 +1,59 @@
+name: Tests
+
+# WHAT THIS CAN AND CANNOT SEE, stated first because the gap is the point.
+#
+# `tests/run.php` covers `lib/` — the HMAC canonicalisation, the proof-of-control
+# hash, the currency exponent table. That code is vendored byte-identically from the
+# shared core, so being wrong there is a 401 in production rather than a negotiation.
+# It cannot boot Magento, so the Mview subscription, the serializer, the drain and the
+# storefront block are NOT covered by a unit run and never will be from here.
+#
+# The bash guards in `bin/` are what cover those, by checking structure a running store
+# would otherwise have to reveal: that the serializer sends every field the wire carries
+# (`check-wire-fields.sh`, whose list is DERIVED from the vendored ItemBuilder), that
+# order attribution is registered where every checkout actually dispatches it, that
+# every CSP host comes from what the service sent rather than a constant, and that a
+# merchant can decline usage sharing at every layer. Each guard fails on purpose before
+# the build trusts it, so a guard that has quietly stopped discriminating is caught
+# rather than read as coverage.
+#
+# The honest verification for everything else remains a real store, and it is not
+# automatable here.
+#
+# PHP VERSIONS ARE A MATRIX because merchants are: Magento Open Source 2.4.6–2.4.9
+# spans 8.1 through 8.4, and this module ships to whatever a merchant already runs.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Tests
+        run: php tests/run.php
+
+      # The build lints every shipped file, validates the XML, and runs each
+      # self-testing guard in bin/ before it packages anything — so this step also
+      # proves the guards still discriminate, and that the archive can be produced.
+      - name: Validate the package
+        run: ./bin/build-module.sh
