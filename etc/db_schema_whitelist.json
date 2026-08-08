@@ -1,0 +1,37 @@
+{
+    "nitrosearch_outbox": {
+        "column": {
+            "id": true,
+            "object_type": true,
+            "object_id": true,
+            "op": true,
+            "version": true,
+            "status": true,
+            "store_id": true,
+            "attempts": true,
+            "created_at": true
+        },
+        "index": {
+            "NITROSEARCH_OUTBOX_STATUS": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "NITROSEARCH_OUTBOX_OBJECT_TYPE_OBJECT_ID_STORE_ID": true
+        }
+    },
+    "nitrosearch_order_report": {
+        "column": {
+            "id": true,
+            "order_id": true,
+            "value_cents": true,
+            "currency": true,
+            "item_ids": true,
+            "q": true,
+            "occurred_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "NITROSEARCH_ORDER_REPORT_ORDER_ID": true
+        }
+    }
+}

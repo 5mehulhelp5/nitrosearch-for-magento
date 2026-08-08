@@ -83,6 +83,20 @@ if 'magento/magento-composer-installer' not in d.get('require', {}):
     sys.exit(1)
 PY
 
+    # ABSENCE ASSERTIONS, which are the Magento-shaped inverse of the version-split
+    # problem the other connectors have. There, two declarations of the version could
+    # disagree. Here the tag is authoritative, so the correct number of OTHER version
+    # declarations is zero — and re-introducing either resurrects a second source of
+    # truth that can drift from the tag with nothing to notice.
+    #
+    # `setup_version` in module.xml is additionally wrong on its own terms: this module
+    # uses declarative schema and Setup/, and 2.3+ ignores it. Re-adding it would be a
+    # number that looks authoritative and is read by nothing.
+    if grep -q 'setup_version' "$root/etc/module.xml" 2>/dev/null; then
+        echo "etc/module.xml declares setup_version — remove it; declarative schema ignores it and the tag is the version"
+        return 1
+    fi
+
     # Dev directories must be export-ignored, or they ship into vendor/.
     local ga="$root/.gitattributes"
     [ -f "$ga" ] || { echo "no .gitattributes — dev files would ship into every merchant's vendor/"; return 1; }

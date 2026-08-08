@@ -98,9 +98,13 @@ for guard in ./bin/check-*.sh; do
     ok "$(basename "$guard")"
 done
 
-# A loop over nothing passes, and "Guards" would print above it.
-[ "$_guards_run" -ge 4 ] \
-    || die "only ${_guards_run} guard(s) ran — bin/check-*.sh matched less than expected, so this build is not gated"
+# A loop over nothing passes, and "Guards" would print above it. The floor is
+# DERIVED from what is on disk rather than hardcoded: a hardcoded 4 keeps passing
+# after a fifth guard is added, so a guard that exists but silently fails to run
+# would be invisible — which is the same enumeration mistake one level up.
+_guards_present="$(find ./bin -maxdepth 1 -name 'check-*.sh' -type f 2>/dev/null | wc -l | tr -d ' ')"
+[ "$_guards_run" -eq "$_guards_present" ] && [ "$_guards_run" -ge 4 ] \
+    || die "${_guards_run} guard(s) ran but ${_guards_present} exist on disk (floor 4) — this build is not gated"
 
 # ── The conformance suite ────────────────────────────────────────────────────
 #
