@@ -39,7 +39,16 @@ reach, which is the bar every other NitroSearch connector was released against.
   checkout, sent by cron.
 - **Automatic trigger management** — created on connect, removed on disconnect, and
   re-asserted on every `setup:upgrade` for a connected store.
-- **Nine release guards**, each of which must fail on purpose before the build trusts it.
+- **Ten release guards**, each of which must fail on purpose before the build trusts it.
+- **`nitrosearch:status` reports your page-cache posture**, because one setting decides whether a
+  search-key renewal can reach your edge at all. Magento sends purges only to `http_cache_hosts` in
+  `app/etc/env.php`; with Varnish in front and that key unset, the origin re-renders and the edge
+  keeps serving a dead key until its TTL expires — storefront search stops and nothing reports it.
+  Measured on a real Varnish, both ways round.
+- **Content Security Policy now allows the hosts YOUR store was given**, rather than a constant.
+  The engine host was already derived at runtime; the widget's own script host and the analytics
+  endpoint were not, so a strict-CSP storefront refused the loader and the only trace was a console
+  message on the shopper's machine. Found by installing Hyvä.
 
 ### Fixed
 

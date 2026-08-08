@@ -10,6 +10,8 @@ declare(strict_types=1);
 
 namespace NitroSearch\Search\Console\Command;
 
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\DeploymentConfig;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Mview\View\StateInterface;
 use Magento\Framework\Mview\ViewInterfaceFactory;
@@ -41,19 +43,28 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class Status extends Command
 {
+    /** Magento's own value for "the full page cache is Varnish or another proxy". */
+    private const FPC_APPLICATION_VARNISH = 2;
+
     private ViewInterfaceFactory $viewFactory;
     private ResourceConnection $resource;
     private Settings $settings;
+    private DeploymentConfig $deploymentConfig;
+    private ScopeConfigInterface $scopeConfig;
 
     public function __construct(
         ViewInterfaceFactory $viewFactory,
         ResourceConnection $resource,
         Settings $settings,
+        DeploymentConfig $deploymentConfig,
+        ScopeConfigInterface $scopeConfig,
         ?string $name = null
     ) {
         $this->viewFactory = $viewFactory;
         $this->resource = $resource;
         $this->settings = $settings;
+        $this->deploymentConfig = $deploymentConfig;
+        $this->scopeConfig = $scopeConfig;
         parent::__construct($name);
     }
 
@@ -113,6 +124,9 @@ class Status extends Command
             "status = 'pending'"
         ));
 
+        $output->writeln('');
+        $this->reportCachePosture($output);
+
         if (!$subscribed) {
             $output->writeln('');
             $output->writeln('Run <comment>bin/magento nitrosearch:subscribe</comment> to create the triggers.');
@@ -121,6 +135,73 @@ class Status extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+
+    /**
+     * Whether a key rotation can actually reach the cache serving the storefront.
+     *
+     * WHY THIS IS IN THE STATUS COMMAND AT ALL. `Cron\Clocks` renews the scoped search
+     * key every 86,400s and `Model\CacheTag` cleans the tag on every page carrying it —
+     * the built-in FPC directly, and an external cache through Magento's own
+     * `PurgeCache`, which sends an HTTP PURGE.
+     *
+     * **`PurgeCache` sends that request to `http_cache_hosts` in `app/etc/env.php`,
+     * and to nothing else.** With Varnish in front of a store and that key absent,
+     * Magento purges its own web node, Varnish never hears about it, and the edge
+     * serves a page holding a dead search key until its TTL expires. MEASURED on a
+     * real Varnish: the rotation reported "cached pages invalidated", the origin
+     * served the new key, and the edge kept serving the old one on a HIT.
+     *
+     * Nothing errors, nothing logs, and the failure looks exactly like a working
+     * store to everyone except a shopper, whose search box quietly returns nothing.
+     * So it is reported here — where a merchant or a support ticket can see it —
+     * rather than left to be discovered from the outside.
+     */
+    private function reportCachePosture(OutputInterface $output): void
+    {
+        // READ THROUGH ScopeConfig, NOT core_config_data. The first version of this
+        // method queried the table directly and reported "Magento built-in" on a store
+        // configured for Varnish — because `config:set --lock-env` writes the value
+        // into `app/etc/env.php` and never touches the database. Same shape as the
+        // widget base URL that was pinned in env.php while a DB read saw nothing; a
+        // status line that is confidently wrong is worse than no line.
+        $application = (int) $this->scopeConfig->getValue('system/full_page_cache/caching_application');
+        $usesExternal = $application === self::FPC_APPLICATION_VARNISH;
+
+        $hosts = [];
+
+        try {
+            $hosts = (array) ($this->deploymentConfig->get('http_cache_hosts') ?? []);
+        } catch (\Throwable $e) {
+            $hosts = [];
+        }
+
+        $output->writeln('<info>Page cache</info>');
+        $output->writeln('  application   : ' . ($usesExternal ? 'Varnish or another proxy' : 'Magento built-in'));
+
+        if (!$usesExternal) {
+            $output->writeln('  key rotation  : cleans the built-in cache directly');
+
+            return;
+        }
+
+        if ($hosts === []) {
+            $output->writeln('  purge hosts   : <error>NONE — set http_cache_hosts in app/etc/env.php</error>');
+            $output->writeln('  key rotation  : <error>CANNOT REACH THE EDGE. Renewing the search key will re-render the origin and leave the proxy serving a dead key until its TTL expires. Storefront search stops silently.</error>');
+
+            return;
+        }
+
+        $described = [];
+        foreach ($hosts as $host) {
+            $described[] = is_array($host)
+                ? ((string) ($host['host'] ?? '?') . ':' . (string) ($host['port'] ?? 80))
+                : (string) $host;
+        }
+
+        $output->writeln('  purge hosts   : ' . implode(', ', $described));
+        $output->writeln('  key rotation  : purges the built-in cache AND those hosts');
     }
 
     /**

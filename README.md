@@ -3,9 +3,12 @@
 Instant, typo-tolerant search for **Magento Open Source**, served by a dedicated hosted engine
 instead of your own server.
 
-> **Status: in development.** No release is published yet, and no Magento store can connect. The
-> verify route, settings layer and module skeleton work against Magento 2.4.8; catalogue sync and
-> the storefront widget are being built.
+> **Status: in development.** No release is published yet, so no Magento store can connect to the
+> live service. Everything below is built and proven against Magento 2.4.8 with Luma and Hyvä:
+> connect, verify, change detection, catalogue sync, the storefront widget, add-to-cart and
+> search-attributed revenue through a real checkout. What is still owed before a tag is the same
+> bar every other connector was released against — installed from published assets into a shop
+> wiped to zero.
 
 ## What this is, and what it is not
 
@@ -176,6 +179,30 @@ bin/magento nitrosearch:cache-invalidate
 
 That clears only the affected pages. Reach for it before `cache:flush`, which on a busy store sends
 every visitor to your PHP workers at once.
+
+### If you run Varnish, check one setting
+
+Magento sends cache purges to the hosts listed in `http_cache_hosts` in `app/etc/env.php`, and to
+nothing else. **If that key is missing, a purge goes to your web node and Varnish never hears about
+it** — so when your search key is renewed, your origin re-renders correctly and your edge keeps
+serving pages holding the old key until their TTL expires. Storefront search stops working and
+nothing anywhere reports a problem.
+
+```php
+'http_cache_hosts' => [
+    ['host' => 'varnish.internal', 'port' => 80],
+],
+```
+
+`bin/magento nitrosearch:status` tells you which way your store is set up, so you do not have to
+find out from a shopper:
+
+```
+Page cache
+  application   : Varnish or another proxy
+  purge hosts   : varnish:80
+  key rotation  : purges the built-in cache AND those hosts
+```
 
 ## Support
 
