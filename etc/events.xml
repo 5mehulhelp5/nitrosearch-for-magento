@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!--
+  GLOBAL SCOPE, FOR ONE EVENT, AND THE REASON IS A DEFECT THAT LOOKED LIKE A DESIGN.
+
+  `sales_order_place_after` lived in `etc/frontend/events.xml` alongside the
+  add-to-cart capture observer. It read perfectly: both concern a shopper's own
+  session, and an admin-created order has no search marker, so frontend scope looked
+  like precision rather than a bug.
+
+  **Luma's checkout does not place orders in the frontend area.** The one-page
+  checkout submits to `POST /rest/<store>/V1/guest-carts/{id}/payment-information`,
+  which Magento executes in **`webapi_rest`** — so a frontend-scoped observer is
+  never registered and never runs. Measured, not reasoned: after a real guest
+  checkout the session still carried
+  `checkout → nitrosearch_attribution → {ids: {8: true}, q: "yoga bag"}`, and
+  `queueReport()` ends by unsetting exactly that key. The marker surviving the order
+  IS the proof the observer never fired. `nitrosearch_order_report` had zero rows
+  across three orders placed on this store since the module was built.
+
+  WHY GLOBAL RATHER THAN `frontend` + `webapi_rest` + `graphql`. Enumerating the
+  areas a shopper's order can be placed in is the same shape as every other list this
+  project has been bitten by: it is correct for the checkouts we happened to test and
+  silently wrong for the next one — a headless GraphQL storefront, a third-party
+  one-page checkout, a payment provider that finalises out of band. **The marker is
+  the real gate**, not the area: an order placed anywhere without one queues nothing,
+  which is precisely what an admin order, a CLI order and a re-order all are.
+
+  The cost of global scope is that this observer is now constructed in areas with no
+  session at all. That is handled where it belongs — `OrderAttribution` takes the
+  checkout session as a PROXY (`etc/di.xml`), so nothing is constructed until a
+  marker is actually read, and `orderPlaced()` swallows whatever that read throws.
+  An attribution is worth nothing next to a completed checkout.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <!--
+      AFTER THE SAVE, NOT AFTER `place()`, AND THE DIFFERENCE IS AN ORDER ID.
+
+      This observed `sales_order_place_after` first. That event is dispatched from
+      `Order::place()`, which `OrderManagement::place()` calls IMMEDIATELY BEFORE
+      `orderRepository->save($order)` — so the order has no entity id yet, and
+      `(int) $order->getEntityId()` is **0**. The first real attributed order proved
+      it: `nitrosearch_order_report` held `order_id = 0` for an order whose entity id
+      was 4.
+
+      Two consequences, both silent and both severe. Locally, `order_id` is UNIQUE and
+      the write is `insertOnDuplicate`, so the SECOND attributed order would overwrite
+      the first rather than joining it. On the wire, `order_ref` is
+      `sha256(install_id | order | order_id)` — a CONSTANT when the id is always 0 —
+      so the service's own dedupe would fold every order a store ever attributed into
+      one. A merchant would see exactly one attributed order, forever, and nothing
+      would error.
+
+      `sales_order_save_after` fires with the row written and the id assigned, inside
+      the same transaction as the order, so a rolled-back checkout takes the report
+      with it. It fires on every later save too — an invoice, a status change, an
+      admin edit — and that is harmless by construction: the marker is cleared when
+      the report is queued, and no marker means no report.
+
+      Still not the success page: a shopper who closes the tab has still bought.
+    -->
+    <event name="sales_order_save_after">
+        <observer name="nitrosearch_report_placed_order"
+                  instance="NitroSearch\Search\Observer\ReportPlacedOrder"/>
+    </event>
+</config>

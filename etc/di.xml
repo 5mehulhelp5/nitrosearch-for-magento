@@ -62,6 +62,23 @@
     </type>
 
     <!--
+      THE CHECKOUT SESSION, LAZILY.
+
+      `sales_order_place_after` is observed at GLOBAL scope (see etc/events.xml), so
+      this class is now constructed wherever an order is placed — including the admin,
+      a CLI import and a queue consumer, none of which has a shopper session. A
+      Proxy defers constructing the session until something actually reads the marker,
+      which happens inside `OrderAttribution::orderPlaced()`'s catch. Without it, a
+      session that cannot start in CLI would throw from a CONSTRUCTOR, outside that
+      catch, and turn "we lost an analytics marker" into "the order failed".
+    -->
+    <type name="NitroSearch\Search\Model\OrderAttribution">
+        <arguments>
+            <argument name="checkoutSession" xsi:type="object">Magento\Checkout\Model\Session\Proxy</argument>
+        </arguments>
+    </type>
+
+    <!--
       The recurring setup hook. Magento resolves `Setup\Recurring` by convention and
       runs it after every `setup:upgrade`, which is what re-asserts the trigger
       subscription for a connected store — an invariant a one-shot schema patch could

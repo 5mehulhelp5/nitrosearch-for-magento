@@ -39,6 +39,32 @@ reach, which is the bar every other NitroSearch connector was released against.
   checkout, sent by cron.
 - **Automatic trigger management** — created on connect, removed on disconnect, and
   re-asserted on every `setup:upgrade` for a connected store.
-- **Six release guards**, each of which must fail on purpose before the build trusts it.
+- **Nine release guards**, each of which must fail on purpose before the build trusts it.
+
+### Fixed
+
+Three defects, all found by placing a real order on a real store, and none of them
+visible in the code.
+
+- **Products indexed as out of stock, so search results had no Add to cart.** The
+  serializer sent eight keys and omitted `in_stock`; the wire reads an absent
+  `in_stock` as out of stock. Every product on every store therefore indexed unbuyable,
+  the results grid rendered "Out of stock" throughout, and the widget correctly refused
+  to offer Add to cart — which meant search-attributed revenue could not be measured
+  once. Nothing errored and the sync reported success on all 2,040 products. The
+  serializer now also sends the image, description, categories, brand, sale status and,
+  for configurables, every variation's SKU, price, stock and option values.
+- **Bundle products priced at zero.** The price came from `final_price`, falling back to
+  `min_price` only when it was null — and on a bundle `final_price` is 0, because the
+  bundle itself carries no price. A kit the storefront lists as "From $61.00" was
+  indexed at $0.00. Which column is the headline price turns out to be a product-type
+  question, and it is now answered against what each type's own page renders.
+- **Attributed orders were never recorded, and would all have been the same order.**
+  Two faults in one path. The observer was registered for the frontend area, but
+  Magento's one-page checkout places orders through the REST API in `webapi_rest`, so
+  it never ran. Underneath that, `sales_order_place_after` fires before the order is
+  saved, so the order id was 0 — locally each report would overwrite the last through
+  its unique key, and on the wire the hashed order reference became a constant that
+  deduped every order a store ever attributed into one.
 
 [Unreleased]: https://github.com/NitroSearch/nitrosearch-for-magento/commits/main

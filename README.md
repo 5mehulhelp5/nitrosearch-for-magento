@@ -142,6 +142,25 @@ unreachable.
 
 Turning off *Share anonymous search data* stops this entirely, along with everything else.
 
+**What is counted, precisely.** Only the lines a shopper reached through search, at what they
+actually paid for them — discounts subtracted, shipping and tax excluded. A configurable product
+counts once, at the parent line that carries the price, never twice. Anything else in the same
+basket is not counted, however it got there.
+
+## What is indexed, and one thing that is not
+
+Each product sends its name, SKU, price, stock status, image, description, categories, brand
+(where you use `manufacturer`), sale status, and — for a configurable — every variation's SKU,
+price, stock and option values, so a shopper can search a variation code and find the parent.
+
+**Popularity is not sent.** Magento Open Source has no ordering signal available without the
+reports aggregation cron, and a store that has never run it would report every product as equally
+unpopular — a silent zero that looks like data. Relevance is name, SKU, description, categories
+and brand.
+
+**Stock comes from the stock your website is assigned to.** With Multi-Source Inventory that is
+the stock resolved from your website's sales channel; without it, Magento's own stock index.
+
 ## A note on caching
 
 Magento always has a full page cache, and your search key is renewed periodically. Pages carrying

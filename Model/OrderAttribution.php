@@ -139,6 +139,19 @@ class OrderAttribution
             return;
         }
 
+        $orderId = (int) $order->getEntityId();
+
+        // NO ID, NO REPORT — and this is a real branch, not defensive padding. The
+        // first version of this observed `sales_order_place_after`, which runs before
+        // the order is saved, so every report was written against id 0: locally they
+        // overwrote each other through the unique key, and on the wire they hashed to
+        // one constant `order_ref` that the service would dedupe into a single order
+        // per store, forever. Writing nothing is recoverable; writing a colliding id
+        // is a number a merchant reads and believes.
+        if ($orderId <= 0) {
+            return;
+        }
+
         $marker = $this->readMarker();
 
         if ($marker['ids'] === []) {
@@ -186,7 +199,7 @@ class OrderAttribution
         $connection->insertOnDuplicate(
             $this->resource->getTableName('nitrosearch_order_report'),
             [
-                'order_id' => (int) $order->getEntityId(),
+                'order_id' => $orderId,
                 'value_cents' => $valueCents,
                 'currency' => (string) $order->getOrderCurrencyCode(),
                 'item_ids' => implode(',', $attributedIds),

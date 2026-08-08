@@ -1,16 +1,21 @@
 <?xml version="1.0"?>
 <!--
-  FRONTEND SCOPE ONLY, deliberately.
+  FRONTEND SCOPE, for the one event that genuinely is frontend-only.
 
-  Both of these concern a shopper's own session. An admin creating an order from the
-  back office has no search marker and never will, and `etc/events.xml` at global
-  scope would run the capture observer on admin cart operations for nothing.
+  `checkout_cart_add_product_complete` is dispatched by the storefront cart
+  controller — `POST /checkout/cart/add/`, which is where the widget posts. There is
+  no other area it can arrive in, and an admin adding to a quote has no search marker
+  and never will.
 
-  Note what is NOT here: catalogue change detection. That is `etc/mview.xml`, because
-  save events miss catalog price rules, tier prices, imports and direct SQL. Reserving
-  events.xml for shopper-session concerns keeps the two from being confused — the
-  temptation to "just add a save observer" is exactly the mistake mview exists to
-  avoid.
+  ORDER PLACEMENT IS NOT HERE ANY MORE, AND THE REASON IS WORTH THE PARAGRAPH.
+  `sales_order_place_after` used to sit in this file, next to the capture observer,
+  reading exactly like its pair. It is `etc/events.xml` now — see the note there.
+
+  Note what is NOT here either: catalogue change detection. That is `etc/mview.xml`,
+  because save events miss catalog price rules, tier prices, imports and direct SQL.
+  Reserving events.xml for shopper-session concerns keeps the two from being
+  confused — the temptation to "just add a save observer" is exactly the mistake
+  mview exists to avoid.
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
@@ -18,11 +23,5 @@
     <event name="checkout_cart_add_product_complete">
         <observer name="nitrosearch_capture_search_add"
                   instance="NitroSearch\Search\Observer\CaptureSearchAdd"/>
-    </event>
-
-    <!-- On placement, not on the success page: a shopper who closes the tab still bought. -->
-    <event name="sales_order_place_after">
-        <observer name="nitrosearch_report_placed_order"
-                  instance="NitroSearch\Search\Observer\ReportPlacedOrder"/>
     </event>
 </config>
