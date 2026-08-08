@@ -8,10 +8,22 @@
   `NitroSearch\Settings::$defaults`; that class remains the authority for what a
   key MEANS, this file only guarantees the path resolves.
 
-  Credentials are absent from this list on purpose. `sync_secret` and
-  `scoped_search_key` are written by the connect flow and read back through the
-  encrypted backend model; giving them a default here would put an empty string
-  through the decryptor on every read.
+  EVERY PATH THE MODULE READS IS DECLARED HERE, INCLUDING THE CREDENTIALS, AND THE
+  EARLIER REASONING FOR OMITTING THEM WAS WRONG.
+
+  That reasoning was: "credentials are written by the connect flow and read back
+  through the encrypted backend model; a default here would put an empty string
+  through the decryptor". It does not survive contact. There is no encrypted backend
+  model on these paths — none was ever declared — so there is no decryptor to feed.
+  And an undeclared path is not merely undefaulted: `bin/magento config:show
+  nitrosearch/credentials/sync_secret` answers **"path doesn't exist"** even with the
+  row sitting in `core_config_data`.
+
+  The consequence was a module that could not read credentials it had written
+  itself: connect would store a sync secret, `Settings::isConnected()` would keep
+  answering false, and the storefront would never emit a config blob. Found by
+  seeding credentials and watching `nitrosearch:status` report "connected: no" while
+  the rows were plainly in the table.
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/config.xsd">
@@ -23,6 +35,32 @@
                 <site_url/>
                 <store_id/>
                 <sync_key_id/>
+                <sync_secret/>
+                <scoped_search_key/>
+                <engine_host/>
+                <collection/>
+                <search_public_id/>
+                <widget_loader_url/>
+                <widget_bundle_url/>
+                <events_url/>
+                <events_token/>
+                <drain_token/>
+                <connect_token/>
+                <plan/>
+                <last_sync/>
+                <last_error/>
+                <status_checked_at>0</status_checked_at>
+                <config_refreshed_at>0</config_refreshed_at>
+                <resync_token_done/>
+                <fullsync_active>0</fullsync_active>
+                <fullsync_cursor>0</fullsync_cursor>
+                <fullsync_total>0</fullsync_total>
+                <fullsync_started/>
+                <fullsync_done/>
+                <product_limit>0</product_limit>
+                <product_count>0</product_count>
+                <at_limit>0</at_limit>
+                <claimed>0</claimed>
                 <connected>0</connected>
                 <verified>0</verified>
                 <!--

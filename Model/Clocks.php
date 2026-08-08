@@ -65,23 +65,29 @@ class Clocks
     private Settings $settings;
     private FullWalk $fullWalk;
     private CacheTag $cacheTag;
+    private OrderAttribution $attribution;
 
-    public function __construct(Settings $settings, FullWalk $fullWalk, CacheTag $cacheTag)
-    {
+    public function __construct(
+        Settings $settings,
+        FullWalk $fullWalk,
+        CacheTag $cacheTag,
+        OrderAttribution $attribution
+    ) {
         $this->settings = $settings;
         $this->fullWalk = $fullWalk;
         $this->cacheTag = $cacheTag;
+        $this->attribution = $attribution;
     }
 
     /**
      * Run whichever clock is due.
      *
-     * @return array{ran: bool, keyChanged: bool}
+     * @return array{ran: bool, keyChanged: bool, reported: int, reportError: string}
      */
     public function run(): array
     {
         if (!$this->settings->isConnected()) {
-            return ['ran' => false, 'keyChanged' => false];
+            return ['ran' => false, 'keyChanged' => false, 'reported' => 0, 'reportError' => ''];
         }
 
         $before = (string) $this->settings->get('SCOPED_SEARCH_KEY');
@@ -110,6 +116,32 @@ class Clocks
             }
         }
 
-        return ['ran' => $ran, 'keyChanged' => $keyChanged];
+        // ATTRIBUTED ORDERS RIDE THIS HEARTBEAT, and they run on EVERY tick rather
+        // than only when a clock was due. The clocks are throttled because polling
+        // costs a request whether or not anything changed; a flush costs nothing when
+        // the queue is empty, and a merchant's revenue data should not wait up to
+        // five minutes longer than it has to because the poll happened to be recent.
+        // THE CATCH RECORDS THE REASON RATHER THAN HIDING IT. A silent catch around
+        // a whole subsystem is how a broken flush looks identical to an empty queue —
+        // which cost a diagnosis here: "orders sent: 0" is what both a working idle
+        // heartbeat and a fatal inside `flush()` print. Swallowing is still right,
+        // because a cron tick must not fatal on a reporting fault, but swallowing
+        // WITHOUT a trace is not.
+        $reported = 0;
+        $reportError = '';
+
+        try {
+            $reported = $this->attribution->flush();
+        } catch (\Throwable $e) {
+            $reportError = $e->getMessage();
+            $this->settings->update(['LAST_ERROR' => 'order report: ' . $reportError]);
+        }
+
+        return [
+            'ran' => $ran,
+            'keyChanged' => $keyChanged,
+            'reported' => $reported,
+            'reportError' => $reportError,
+        ];
     }
 }

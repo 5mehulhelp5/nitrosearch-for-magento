@@ -74,6 +74,23 @@ class Status extends Command
         $mode = $registered ? $view->getState()->getMode() : 'not registered';
         $subscribed = $registered && $mode === StateInterface::MODE_ENABLED;
 
+        // WHAT THE MODULE ACTUALLY SEES, which is not the same question as what is
+        // in the database. `bin/magento config:show` validates against system.xml and
+        // answers "path doesn't exist" for any path not declared as a FIELD there —
+        // including every credential — so it cannot be used to answer "did my
+        // credentials load?". This reads through the module's own settings layer,
+        // which is the only thing whose answer matters.
+        //
+        // KEY NAMES ONLY, NEVER VALUES. A merchant pastes this output into a support
+        // ticket.
+        $loaded = array_keys($this->settings->all());
+        sort($loaded);
+
+        $output->writeln('<info>Settings the module can read</info>');
+        $output->writeln('  count : ' . count($loaded));
+        $output->writeln('  keys  : ' . ($loaded === [] ? '<error>NONE — the module cannot read its own configuration</error>' : implode(', ', $loaded)));
+        $output->writeln('');
+
         $output->writeln('<info>Connection</info>');
         $output->writeln('  connected     : ' . ($this->settings->isConnected() ? 'yes' : 'no'));
         $output->writeln('  verified      : ' . ($this->settings->get('VERIFIED') ? 'yes' : 'no'));

@@ -274,6 +274,60 @@ final class Client
     }
 
     /**
+     * Report one attributed order.
+     *
+     * THE REAL ORDER ID NEVER LEAVES THE SHOP. It is hashed with this install's own
+     * id first, which gives the service a reference that is stable for this shop —
+     * so repeat reports of the same order collapse — while being useless anywhere
+     * else and reversible nowhere. Nor does the customer, the address, the payment,
+     * or anything the shopper did not search for. The wire carries a value, a
+     * currency, an opaque reference, the ids of the items that came from a search,
+     * and the term that led to them.
+     *
+     * GATED ON THE MERCHANT'S ANALYTICS CHOICE, not only on being connected. This is
+     * usage data, and a merchant who declined to share it must not have their revenue
+     * reported either — the toggle would otherwise mean less than it says.
+     *
+     * A 4xx RETURNS TRUE, WHICH LOOKS WRONG AND IS NOT. The caller deletes a report
+     * it considers handled, and a 4xx means the payload is malformed or this shop is
+     * not entitled to send it — neither improves by being retried. Returning false
+     * there would park a poison row at the head of the queue forever and block every
+     * later order behind it. Only a transport failure or a 5xx earns another attempt.
+     *
+     * @param array<string, mixed> $report
+     *
+     * @return bool whether this report is finished with, one way or another
+     */
+    public function reportOrder(array $report)
+    {
+        if (!$this->settings->isConnected() || !$this->settings->get('SHARE_SEARCH_DATA', true)) {
+            return false;
+        }
+
+        $itemIds = array();
+        foreach ((array) (isset($report['item_ids']) ? $report['item_ids'] : array()) as $id) {
+            $itemIds[] = (string) $id;
+        }
+
+        $body = json_encode(array(
+            'order_ref' => hash('sha256', $this->settings->installId() . '|order|' . (int) $report['order_id']),
+            'value_cents' => (int) $report['value_cents'],
+            'currency' => (string) $report['currency'],
+            'occurred_at' => (string) $report['occurred_at'],
+            'item_ids' => array_values($itemIds),
+            'q' => (string) (isset($report['q']) ? $report['q'] : ''),
+        ));
+
+        $res = $this->signed('POST', '/v1/orders', $body, 10);
+
+        if (!$res['ok'] && $res['status'] >= 400 && $res['status'] < 500) {
+            return true;
+        }
+
+        return $res['ok'];
+    }
+
+    /**
      * Sign and send. Returns a uniform shape; never throws.
      *
      * @param string $method

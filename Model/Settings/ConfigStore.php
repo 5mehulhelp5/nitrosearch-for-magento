@@ -67,9 +67,35 @@ class ConfigStore implements SettingsStore
 
         $out = [];
         foreach ($group as $field => $value) {
-            if ($value === null || is_array($value)) {
+            if ($value === null) {
                 continue;
             }
+
+            // AN EMPTY XML ELEMENT PARSES AS AN ARRAY, NOT AN EMPTY STRING, and
+            // skipping arrays silently dropped real settings. `<sync_key_id/>` in
+            // config.xml becomes `[]` in the merged config tree; the previous version
+            // of this loop treated that as "not a scalar, ignore" and the key never
+            // reached `Settings` at all — so `isConnected()` answered false on a store
+            // whose credentials were sitting in `core_config_data`.
+            //
+            // It was found by listing what the module could actually read and seeing
+            // SYNC_SECRET present and SYNC_KEY_ID absent with both rows in the table.
+            // `bin/magento config:show` is no help here: it validates against
+            // system.xml and answers "path doesn't exist" for every credential,
+            // whether or not the value loads.
+            //
+            // An empty element means "declared, no value", which is exactly the empty
+            // string — so it is coerced rather than dropped. A NON-empty array would
+            // be a nested group, which this module does not use and which has no
+            // sensible string form, so that is still skipped.
+            if (is_array($value)) {
+                if ($value !== []) {
+                    continue;
+                }
+
+                $value = '';
+            }
+
             $out[strtoupper((string) $field)] = (string) $value;
         }
 

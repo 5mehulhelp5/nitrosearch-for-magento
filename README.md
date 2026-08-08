@@ -122,6 +122,23 @@ To see both clocks at any time:
 bin/magento nitrosearch:clocks
 ```
 
+## Search-attributed revenue
+
+When a shopper adds something to their basket from NitroSearch results, the module notes it
+against their session. When they place the order, the value of just those items is reported so
+your dashboard can show what search actually earned.
+
+**What leaves your store:** a value, a currency, an opaque reference, the ids of the items that
+came from a search, and the term that led to them. **What never leaves:** the real order id (it is
+hashed with your install id first), the customer, the address, the payment, and anything the
+shopper did not search for.
+
+**Reporting never happens during checkout.** The report is queued and sent by cron minutes later.
+A checkout must never be slowed — and must certainly never fail — because a search API was briefly
+unreachable.
+
+Turning off *Share anonymous search data* stops this entirely, along with everything else.
+
 ## A note on caching
 
 Magento always has a full page cache, and your search key is renewed periodically. Pages carrying

@@ -71,6 +71,11 @@ class ClocksCommand extends Command
         $output->writeln('');
         $output->writeln('  heartbeat ran : ' . ($result['ran'] ? 'yes' : 'no (nothing was due)'));
         $output->writeln('  key changed   : ' . ($result['keyChanged'] ? '<info>yes — cached pages invalidated</info>' : 'no'));
+        $output->writeln('  orders sent   : ' . $result['reported']);
+
+        if ($result['reportError'] !== '') {
+            $output->writeln('  <error>order report failed: ' . $result['reportError'] . '</error>');
+        }
         $output->writeln('');
 
         $this->report($output, 'after');

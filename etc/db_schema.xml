@@ -44,4 +44,40 @@
             <column name="status"/>
         </index>
     </table>
+
+    <!--
+      Attributed orders waiting to be reported.
+
+      A TABLE, NOT A SESSION VALUE, AND THAT DISTINCTION IS THE WHOLE DESIGN. The
+      cart-side marker lives in the shopper's session because losing one costs a
+      single attribution nobody will notice. A report is different: it is written
+      during checkout and sent minutes later, and losing it loses revenue data that
+      cannot be reconstructed from anything else.
+
+      REPORTING NEVER HAPPENS DURING CHECKOUT. The row is queued and the existing
+      heartbeat sends it. A checkout must never be slowed, and must certainly never
+      fail, because a search API was briefly unreachable — and an observer on order
+      placement is exactly the wrong place to make an outbound HTTP request.
+    -->
+    <table name="nitrosearch_order_report" resource="default" engine="innodb"
+           comment="NitroSearch attributed orders awaiting report">
+        <column xsi:type="int" name="id" unsigned="true" nullable="false" identity="true"/>
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false"/>
+        <column xsi:type="bigint" name="value_cents" unsigned="true" nullable="false" default="0"
+                comment="attributed slice only, integer minor units"/>
+        <column xsi:type="varchar" name="currency" length="8" nullable="false"/>
+        <column xsi:type="varchar" name="item_ids" length="512" nullable="false" default=""
+                comment="comma-separated product ids that came from a search"/>
+        <column xsi:type="varchar" name="q" length="128" nullable="false" default=""/>
+        <column xsi:type="timestamp" name="occurred_at" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+        <!-- One report per order. An order placed twice by a retried request must not
+             be counted twice, and the service's own dedupe on order_ref is a second
+             line rather than the first. -->
+        <constraint xsi:type="unique" referenceId="NITROSEARCH_ORDER_REPORT_ORDER">
+            <column name="order_id"/>
+        </constraint>
+    </table>
 </schema>
