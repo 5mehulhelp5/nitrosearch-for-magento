@@ -38,6 +38,7 @@
                 <item name="nitrosearch_drain" xsi:type="object">NitroSearch\Search\Console\Command\DrainCommand</item>
                 <item name="nitrosearch_cache_invalidate" xsi:type="object">NitroSearch\Search\Console\Command\CacheInvalidate</item>
                 <item name="nitrosearch_clocks" xsi:type="object">NitroSearch\Search\Console\Command\ClocksCommand</item>
+                <item name="nitrosearch_connect" xsi:type="object">NitroSearch\Search\Console\Command\Connect</item>
             </argument>
         </arguments>
     </type>

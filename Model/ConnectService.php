@@ -68,11 +68,18 @@ class ConnectService
      * nothing and costs them their credentials. Every connector on this project
      * learned that the same way.
      *
+     * @param string|null $siteUrlOverride the URL NitroSearch should fetch to verify this
+     *                                      store, when it differs from the base URL — a
+     *                                      reverse proxy, a headless install, or a staging
+     *                                      host whose internal and public names differ
+     *
      * @return array{ok: bool, connected: bool, verified: bool, error: string, reason: string, subscribeError?: string}
      */
-    public function connect(): array
+    public function connect(?string $siteUrlOverride = null): array
     {
-        $siteUrl = $this->siteUrl();
+        $siteUrl = $siteUrlOverride !== null && $siteUrlOverride !== ''
+            ? rtrim($siteUrlOverride, '/')
+            : $this->siteUrl();
 
         // Persisted BEFORE the request, because it is a SIGNING INPUT: the canonical
         // string covers site_url, so the value used to sign and the value stored

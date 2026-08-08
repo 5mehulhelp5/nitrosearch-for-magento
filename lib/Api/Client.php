@@ -63,19 +63,29 @@ final class Client
         $body = json_encode(array(
             'site_url' => $this->siteUrl,
             'install_id' => $this->settings->installId(),
-            // DECLARING THE PLATFORM IS NOT COSMETIC. It is what makes the service
-            // hand back the OpenCart widget bundle rather than another platform's,
-            // and what makes it namespace our engine document ids by type — OpenCart
-            // keys products and information pages on separate sequences, so product 4
-            // and information 4 both exist and would otherwise collide on one
-            // document.
+            // DECLARING THE PLATFORM IS NOT COSMETIC, AND IT MUST NOT BE HARDCODED
+            // HERE. It is what makes the service hand back THIS platform's widget
+            // bundle rather than another's, and what namespaces our engine document
+            // ids by object type.
             //
-            // ONE SLUG FOR BOTH MAJORS, deliberately. A merchant's OpenCart version is
-            // not a different platform: the catalogue, the wire and the storefront
-            // widget are identical, and only this module's own file layout differs.
-            // Declaring `opencart3` would double every per-platform cost on the
-            // service for a distinction that ends at the module boundary.
-            'platform' => 'opencart',
+            // THIS LINE READ `'platform' => 'opencart'` IN THE COPY THIS FILE WAS
+            // VENDORED FROM, and it survived into the Magento module unnoticed. The
+            // consequence was not subtle: the service registered a Magento store as
+            // OpenCart and would have served it the OPENCART widget bundle — whose
+            // loader reads `search` as the query parameter where Magento uses `q`,
+            // and whose cart endpoint is a route Magento does not have. A storefront
+            // that renders the entire catalogue under any search term is exactly the
+            // failure [D-039] cost, arriving by a different door.
+            //
+            // It was caught by connecting a real store and reading the platform back
+            // out of the service, which is the only place the wrong value is visible:
+            // nothing local objects to it, and every request signs and succeeds.
+            //
+            // So the slug comes from the module's own settings. `lib/` is shared
+            // byte-identically across four connectors, and a per-platform constant in
+            // shared code is a contradiction that only holds while there is one
+            // consumer.
+            'platform' => (string) $this->settings->get('PLATFORM'),
         ));
 
         $res = $this->request('POST', $this->settings->apiUrl() . '/v1/connect', $headers, $body, 20);

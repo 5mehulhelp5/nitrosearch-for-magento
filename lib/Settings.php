@@ -53,6 +53,17 @@ final class Settings
      */
     private static $defaults = array(
         'API_URL' => 'https://api.nitrosearch.io',
+        // THE PLATFORM SLUG THIS MODULE DECLARES, and the one value in this table
+        // that is genuinely per-connector rather than per-store. It selects the
+        // widget bundle the service hands back and namespaces engine document ids,
+        // so a wrong value is a storefront loading another platform's search.
+        //
+        // It lives here rather than in `Api\Client` because that file is shared
+        // byte-identically across four connectors — where it WAS hardcoded, and the
+        // Magento module inherited `opencart` and registered itself as one.
+        //
+        // Never `magento2`, never `adobe-commerce`: one slug per platform.
+        'PLATFORM' => 'magento',
         'CONNECT_TOKEN' => '',
         'CONNECTED' => false,
         'VERIFIED' => false,
