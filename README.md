@@ -3,12 +3,10 @@
 Instant, typo-tolerant search for **Magento Open Source**, served by a dedicated hosted engine
 instead of your own server.
 
-> **Status: in development.** No release is published yet, so no Magento store can connect to the
-> live service. Everything below is built and proven against Magento 2.4.8 with Luma and Hyvä:
+> **Status: released — `1.0.0`.** Proven against Magento Open Source 2.4.8 with both Luma and Hyvä:
 > connect, verify, change detection, catalogue sync, the storefront widget, add-to-cart and
-> search-attributed revenue through a real checkout. What is still owed before a tag is the same
-> bar every other connector was released against — installed from published assets into a shop
-> wiped to zero.
+> search-attributed revenue through a real checkout. The admin screen is English only; translated
+> back offices are the one gap this connector shares with the PrestaShop and OpenCart ones.
 
 ## What this is, and what it is not
 

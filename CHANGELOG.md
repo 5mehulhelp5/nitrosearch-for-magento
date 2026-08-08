@@ -9,9 +9,13 @@ this repository deliberately declares it nowhere else.
 
 ## [Unreleased]
 
-Everything below is built and unreleased. **No version has been tagged**: the module has
-not yet been proven from install to live storefront search on a store a shopper can
-reach, which is the bar every other NitroSearch connector was released against.
+Nothing yet.
+
+## [1.0.0] — 2026-08-08
+
+The first release. Everything below was proven against Magento Open Source 2.4.8 with
+Luma and Hyvä: connect, verify, change detection, catalogue sync, the storefront widget,
+add-to-cart, and search-attributed revenue through a real guest checkout.
 
 ### Added
 
@@ -84,4 +88,5 @@ visible in the code.
   its unique key, and on the wire the hashed order reference became a constant that
   deduped every order a store ever attributed into one.
 
-[Unreleased]: https://github.com/NitroSearch/nitrosearch-for-magento/commits/main
+[Unreleased]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/NitroSearch/nitrosearch-for-magento/releases/tag/1.0.0
