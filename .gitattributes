@@ -1,0 +1,16 @@
+# WHAT A COMPOSER DIST ARCHIVE CARRIES.
+#
+# `composer require` on a tagged release downloads a dist archive built from the
+# repository tree, so anything tracked here lands in a merchant's vendor/ directory
+# unless it is excluded. Development files in vendor/ are not merely untidy: they are
+# files a merchant's security scanner will flag, files their deploy will copy on every
+# release, and — in the case of tests — PHP that Magento's own compiler may try to
+# reflect over during `setup:di:compile`.
+#
+# The rule is what a MERCHANT needs to run the module, and nothing else.
+/.github            export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/bin                export-ignore
+/tests              export-ignore
+/dist               export-ignore
