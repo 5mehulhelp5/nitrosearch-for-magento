@@ -86,7 +86,7 @@ final class ResyncCheck
     /** @var FullSync */
     private $fullSync;
 
-    public function __construct(Settings $settings, Client $client, FullSync $fullSync)
+    public function __construct(Settings $settings, Client $client, FullWalk $fullSync)
     {
         $this->settings = $settings;
         $this->client = $client;

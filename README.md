@@ -97,6 +97,31 @@ because the third was found by measuring rather than assuming:
 None of the three is the correctness argument. **The periodic full walk is**, exactly as on the other
 connectors: it re-sends the whole catalogue on a schedule and does not depend on any signal firing.
 
+## Two clocks, and why they cannot be one
+
+The module runs two jobs on your cron, both every five minutes, and they decide between
+themselves which is actually due:
+
+| | Interval | What it does |
+|---|---|---|
+| Poll | 5 minutes | asks whether we should re-send your catalogue, and picks up plan changes |
+| Key refresh | 24 hours | fetches a new storefront search key before the current one expires |
+
+**They are separate because the status call carries no key.** A store that only polled would
+hold the key it was issued at setup until that key expired — at which point storefront search
+would quietly return nothing while this screen still said "connected". That is the failure this
+design exists to prevent, and it is invisible from every screen you would think to check.
+
+**The heartbeat is not gated on having anything to sync.** An empty queue is what a healthy,
+settled catalogue looks like — and that is exactly the store whose key would otherwise expire
+unnoticed.
+
+To see both clocks at any time:
+
+```bash
+bin/magento nitrosearch:clocks
+```
+
 ## A note on caching
 
 Magento always has a full page cache, and your search key is renewed periodically. Pages carrying

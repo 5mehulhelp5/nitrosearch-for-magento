@@ -31,7 +31,7 @@ use NitroSearch\Settings;
  * walk is stopped is not noticed here, because a walk only ever sees what exists.
  * That is the service's resync request to ask for, not something to reinvent.
  */
-final class FullSync
+final class FullSync implements FullWalk
 {
     /** Ids per tick. Cheap enough that the walk is never the slow part. */
     const CHUNK = 500;

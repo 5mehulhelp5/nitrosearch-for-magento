@@ -13,5 +13,16 @@
         <job name="nitrosearch_drain" instance="NitroSearch\Search\Cron\DrainJob" method="execute">
             <schedule>*/5 * * * *</schedule>
         </job>
+
+        <!--
+          The heartbeat. Deliberately a SEPARATE job from the drain rather than a call
+          at the end of it: the drain returns early when there is nothing to send, and
+          a heartbeat living inside it would then never run on precisely the store
+          whose key is about to expire — a store with a healthy, unchanging catalogue.
+          Two jobs cannot be short-circuited by each other.
+        -->
+        <job name="nitrosearch_clocks" instance="NitroSearch\Search\Cron\ClocksJob" method="execute">
+            <schedule>*/5 * * * *</schedule>
+        </job>
     </group>
 </config>

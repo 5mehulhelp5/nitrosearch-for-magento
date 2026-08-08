@@ -14,6 +14,15 @@
                 type="NitroSearch\Search\Model\Settings\ConfigStore"/>
 
     <!--
+      The full walk. `ResyncCheck` — vendored byte-identically from the shared core —
+      depends on the PORT so its clock logic stays platform-free; this binds it to
+      Magento's implementation, which enqueues the catalogue in one INSERT … SELECT
+      rather than paging a cursor the way the other connectors must.
+    -->
+    <preference for="NitroSearch\Sync\FullWalk"
+                type="NitroSearch\Search\Model\FullWalk"/>
+
+    <!--
       Console commands are registered through the CommandList, not discovered.
       A command class that is not listed here simply does not exist as far as
       `bin/magento` is concerned — it fails as "command not found", which points
@@ -28,6 +37,7 @@
                 <item name="nitrosearch_serialize" xsi:type="object">NitroSearch\Search\Console\Command\Serialize</item>
                 <item name="nitrosearch_drain" xsi:type="object">NitroSearch\Search\Console\Command\DrainCommand</item>
                 <item name="nitrosearch_cache_invalidate" xsi:type="object">NitroSearch\Search\Console\Command\CacheInvalidate</item>
+                <item name="nitrosearch_clocks" xsi:type="object">NitroSearch\Search\Console\Command\ClocksCommand</item>
             </argument>
         </arguments>
     </type>
