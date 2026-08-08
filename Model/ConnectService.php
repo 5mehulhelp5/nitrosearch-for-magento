@@ -38,17 +38,20 @@ class ConnectService
     private Outbox $outbox;
     private StoreManagerInterface $storeManager;
     private CacheTag $cacheTag;
+    private Subscription $subscription;
 
     public function __construct(
         Settings $settings,
         Outbox $outbox,
         StoreManagerInterface $storeManager,
-        CacheTag $cacheTag
+        CacheTag $cacheTag,
+        Subscription $subscription
     ) {
         $this->settings = $settings;
         $this->outbox = $outbox;
         $this->storeManager = $storeManager;
         $this->cacheTag = $cacheTag;
+        $this->subscription = $subscription;
     }
 
     /**
@@ -65,7 +68,7 @@ class ConnectService
      * nothing and costs them their credentials. Every connector on this project
      * learned that the same way.
      *
-     * @return array{ok: bool, connected: bool, verified: bool, error: string, reason: string}
+     * @return array{ok: bool, connected: bool, verified: bool, error: string, reason: string, subscribeError?: string}
      */
     public function connect(): array
     {
@@ -89,11 +92,23 @@ class ConnectService
             ];
         }
 
+        // THE TRIGGERS GO IN HERE, NOT AT INSTALL. A merchant evaluating the module
+        // has not asked for 42 triggers across their catalogue tables, and on an
+        // unconnected store that work has no consumer — the drain cannot send
+        // anything without credentials. Connecting is the moment they are wanted.
+        //
+        // A failure is NOT a failed connect. The store is connected; it just will not
+        // notice changes until the triggers exist, which `nitrosearch:status` reports
+        // and the merchant can fix with a grant. Failing the connect over it would
+        // throw away working credentials for a repairable condition.
+        $subscribeError = $this->subscription->ensure();
+
         $verification = $client->verify();
 
         return [
             'ok' => true,
             'connected' => true,
+            'subscribeError' => $subscribeError,
             'verified' => !empty($verification['verified']),
             'error' => '',
             'reason' => (string) ($verification['reason'] ?? ''),
@@ -157,6 +172,12 @@ class ConnectService
      */
     public function disconnect(): void
     {
+        // TRIGGERS FIRST, THEN CREDENTIALS. Reversing this loses the ability to
+        // report a failure to remove them: once the settings are purged the module no
+        // longer knows it was ever connected, and a merchant left with orphaned
+        // triggers has nothing anywhere telling them so.
+        $this->subscription->remove();
+
         $this->settings->purge();
     }
 

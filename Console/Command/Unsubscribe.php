@@ -10,8 +10,7 @@ declare(strict_types=1);
 
 namespace NitroSearch\Search\Console\Command;
 
-use Magento\Framework\Mview\ViewInterface;
-use Magento\Framework\Mview\ViewInterfaceFactory;
+use NitroSearch\Search\Model\Subscription;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -29,11 +28,11 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class Unsubscribe extends Command
 {
-    private ViewInterfaceFactory $viewFactory;
+    private Subscription $subscription;
 
-    public function __construct(ViewInterfaceFactory $viewFactory, ?string $name = null)
+    public function __construct(Subscription $subscription, ?string $name = null)
     {
-        $this->viewFactory = $viewFactory;
+        $this->subscription = $subscription;
         parent::__construct($name);
     }
 
@@ -47,25 +46,16 @@ class Unsubscribe extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        /** @var ViewInterface $view */
-        $view = $this->viewFactory->create()->load('nitrosearch_product');
-
-        if ($view->getId() === null) {
-            $output->writeln('<error>View nitrosearch_product is not registered. Run setup:upgrade first.</error>');
-
-            return Command::FAILURE;
-        }
-
-        if ($view->getState()->getMode() !== \Magento\Framework\Mview\View\StateInterface::MODE_ENABLED) {
+        if (!$this->subscription->isSubscribed()) {
             $output->writeln('<info>Not subscribed.</info> Nothing to remove.');
 
             return Command::SUCCESS;
         }
 
-        try {
-            $view->unsubscribe();
-        } catch (\Throwable $e) {
-            $output->writeln('<error>Could not drop triggers: ' . $e->getMessage() . '</error>');
+        $error = $this->subscription->remove();
+
+        if ($error !== '') {
+            $output->writeln('<error>Could not drop triggers: ' . $error . '</error>');
 
             return Command::FAILURE;
         }

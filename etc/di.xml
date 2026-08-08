@@ -59,4 +59,11 @@
             </argument>
         </arguments>
     </type>
+
+    <!--
+      The recurring setup hook. Magento resolves `Setup\Recurring` by convention and
+      runs it after every `setup:upgrade`, which is what re-asserts the trigger
+      subscription for a connected store — an invariant a one-shot schema patch could
+      not maintain.
+    -->
 </config>

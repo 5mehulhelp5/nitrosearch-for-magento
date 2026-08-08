@@ -48,7 +48,9 @@ bin/magento setup:di:compile        # required in production mode
 bin/magento cache:flush
 ```
 
-Then open **Stores → Configuration → Services → NitroSearch** and connect.
+Then open **Stores → Configuration → Services → NitroSearch**, choose the store view to index,
+and press Connect. That is the whole setup — connecting installs the change-detection triggers for
+you, and every `setup:upgrade` afterwards checks they are still there.
 
 ### Things that catch people out
 
@@ -57,10 +59,11 @@ Then open **Stores → Configuration → Services → NitroSearch** and connect.
 - **Composer 2.2+ requires plugins to be allow-listed.** A stock Magento root `composer.json`
   already carries `"magento/*": true`, so this usually needs no action — but a pruned root file
   will need it added.
-- **Uninstalling needs one extra command.** `composer remove` plus `setup:upgrade` drops this
-  module's table through declarative schema, but **database triggers are not schema**. Run
-  `bin/magento nitrosearch:unsubscribe` before removing the module, or triggers are left writing
-  into a table that no longer exists.
+- **Uninstalling: disconnect first.** Pressing Disconnect removes the database triggers as well as
+  your credentials. `composer remove` plus `setup:upgrade` drops this module's tables through
+  declarative schema, but **triggers are not schema** — so a module removed while still connected
+  leaves triggers writing into a table that no longer exists. If you have already removed it, or
+  prefer the command line: `bin/magento nitrosearch:unsubscribe`.
 
 ## How it keeps your catalogue in step
 
