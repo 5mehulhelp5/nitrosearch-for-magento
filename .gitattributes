@@ -14,3 +14,8 @@
 /bin                export-ignore
 /tests              export-ignore
 /dist               export-ignore
+
+# The README's images. A merchant installing by Composer never reads the README
+# from the package — they read it on GitHub — so shipping ~150 KB of screenshots
+# into every vendor/ directory buys nothing.
+/assets             export-ignore

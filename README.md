@@ -1,9 +1,42 @@
-# NitroSearch for Magento
+<p align="center">
+  <img src="assets/mark.svg" width="72" height="72" alt="NitroSearch">
+</p>
 
-Instant, typo-tolerant search for **Magento Open Source**, served by a dedicated hosted engine
-instead of your own server.
+<h1 align="center">NitroSearch for Magento</h1>
 
-> **Status: released — `1.0.0`.** Proven against Magento Open Source 2.4.8 with both Luma and Hyvä:
+<p align="center">
+  <strong>Search your shoppers can misspell.</strong><br>
+  Instant, typo-tolerant product search served from the cloud — with no OpenSearch cluster of your own in the path.
+</p>
+
+<p align="center">
+  <a href="https://nitrosearch.io/magento">nitrosearch.io/magento</a> &nbsp;·&nbsp;
+  <a href="https://nitrosearch.io/pricing">Pricing</a> &nbsp;·&nbsp;
+  <a href="https://nitrosearch.io/legal/privacy">Privacy</a> &nbsp;·&nbsp;
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/NitroSearch/nitrosearch-for-magento/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/NitroSearch/nitrosearch-for-magento?label=release&color=2563eb"></a>
+  <img alt="Magento Open Source 2.4.6-2.4.9" src="https://img.shields.io/badge/Magento%20Open%20Source-2.4.6%20%E2%80%93%202.4.9-orange">
+  <img alt="PHP 8.1+" src="https://img.shields.io/badge/PHP-8.1%2B-777bb4">
+  <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/licence-GPL--3.0-green"></a>
+</p>
+
+---
+
+<p align="center">
+  <img src="assets/screenshot-dropdown.webp" alt="NitroSearch instant search on a Magento storefront: the misspelling &ldquo;jaket&rdquo; returns twenty-three jackets with images, prices and highlighted matches, beside filters built from the store&rsquo;s own attributes" width="900">
+</p>
+
+NitroSearch is a hosted search service. This module syncs your Magento catalogue to it and lets it
+serve instant, typo-tolerant search and filtering to your shoppers — every query goes straight from
+the browser to our engine, so **neither your PHP workers nor your search cluster are in the search
+path**. Search stays fast while your store is busy, and this module is not on that path at all.
+
+Works on **Luma and Hyvä from one module** — see [Installing](#installing).
+
+> **Status: released — `1.0.0`.** Proven against Magento Open Source 2.4.8 with both themes:
 > connect, verify, change detection, catalogue sync, the storefront widget, add-to-cart and
 > search-attributed revenue through a real checkout. The admin screen is English only; translated
 > back offices are the one gap this connector shares with the PrestaShop and OpenCart ones.
@@ -126,6 +159,10 @@ To see both clocks at any time:
 bin/magento nitrosearch:clocks
 ```
 
+<p align="center">
+  <img src="assets/screenshot-results.webp" alt="The NitroSearch results page on a Magento storefront: twenty-three jackets in a grid with prices, beside stock, sale and category filters drawn from the store&rsquo;s own layered-navigation attributes" width="900">
+</p>
+
 ## Search-attributed revenue
 
 When a shopper adds something to their basket from NitroSearch results, the module notes it
@@ -243,6 +280,17 @@ it. The archive it produces is for people; Composer installs from the git tag.
 Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The one
 structural rule is that `lib/` is shared byte-identically with the other NitroSearch connectors, so
 a change there is a change to four of them.
+
+## More about NitroSearch for Magento
+
+The product page — what it indexes, how it compares, pricing, and four guides on Magento search
+written from measurements on a real 2.4.8 install — lives at
+**<https://nitrosearch.io/magento>**:
+
+- [Magento search and typos](https://nitrosearch.io/magento/typo-tolerance) — why a stock 2.4.8 returns nothing for `jaket`
+- [Magento needs a search cluster](https://nitrosearch.io/magento/opensearch-hosting) — what running OpenSearch actually costs
+- [Configurable products in search](https://nitrosearch.io/magento/configurable-products) — 2,040 rows, 181 products
+- [Your layered navigation, in the search box](https://nitrosearch.io/magento/search-filters) — filters you configured once
 
 ## Support
 
