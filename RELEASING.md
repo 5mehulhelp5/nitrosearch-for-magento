@@ -76,7 +76,7 @@ The practical consequence: **the tag IS the release.** Nothing else needs bumpin
 
 ## What a release claims
 
-Tagging is what flips `hasConnector()` on the service, and that flag is a claim to
-merchants that they can install this and it works. The bar is deliberately high and is
-written down in the backend's `DECISIONS.md` under D-037: **proven from published assets
-into a shop wiped to zero, all the way to live search.** Do not tag to "see if it works".
+Tagging is what flips the connector on for the service, and that flag is a claim to
+merchants that they can install this and it works. The bar is deliberately high:
+**proven from the published assets into a shop wiped to zero, all the way to live
+search.** Do not tag to "see if it works".
