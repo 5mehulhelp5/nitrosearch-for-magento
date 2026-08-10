@@ -52,8 +52,12 @@ check_tree() {
         || { echo "ResyncCheck has no key-refresh interval — the two clocks have been merged"; return 1; }
 
     local poll refresh
-    poll="$(sed -n 's/.*const INTERVAL *= *\([0-9]*\).*/\1/p' "$resync" | head -n1)"
-    refresh="$(sed -n 's/.*const REFRESH_INTERVAL *= *\([0-9]*\).*/\1/p' "$resync" | head -n1)"
+    # `sed -n '1p'`, never `head -n1`. `head` leaves as soon as it has its line and
+    # SIGPIPEs the `sed` still reading the file; `pipefail` returns that 141 as the
+    # pipeline's status, and a failing command substitution inside an assignment is
+    # fatal under `set -e` — the script dies with no message at all.
+    poll="$(sed -n 's/.*const INTERVAL *= *\([0-9]*\).*/\1/p' "$resync" | sed -n '1p')"
+    refresh="$(sed -n 's/.*const REFRESH_INTERVAL *= *\([0-9]*\).*/\1/p' "$resync" | sed -n '1p')"
 
     [ -n "$poll" ] && [ -n "$refresh" ] || { echo "could not read both intervals"; return 1; }
     [ "$poll" != "$refresh" ] || { echo "both clocks have the same interval ($poll) — they have been merged"; return 1; }

@@ -123,11 +123,11 @@ qgrep() { grep -c "$@" >/dev/null; }
 method_block() {
     strip_php_comments "$1" | awk -v name="$2" '
         !inside && $0 ~ "function[[:space:]]+" name "[[:space:]]*\\(" { inside = 1 }
-        inside {
+        inside && !done {
             print
             opened += gsub(/\{/, "{")
             closed += gsub(/\}/, "}")
-            if (opened > 0 && opened == closed) { exit }
+            if (opened > 0 && opened == closed) { done = 1 }
         }'
 }
 
@@ -140,12 +140,12 @@ send_method() {
             m = substr($0, RSTART, RLENGTH)
             sub(/function[[:space:]]+/, "", m)
         }
-        /reportOrder[[:space:]]*\(/ { print m; exit }'
+        /reportOrder[[:space:]]*\(/ && !found { print m; found = 1 }'
 }
 
 # An integer constant's value, from live code only.
 const_value() {
-    strip_php_comments "$1" | sed -n "s/.*$2[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p" | head -1
+    strip_php_comments "$1" | sed -n "s/.*$2[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p" | sed -n '1p'
 }
 
 check_tree() {
@@ -227,7 +227,7 @@ check_tree() {
     # method, so it is read where it is declared and the method is required to consult
     # it — a list nothing reads is as good as no list.
     local retry_list
-    retry_list="$(strip_php_comments "$root/$CLIENT" | grep -E '\$orderRetryCodes[[:space:]]*=' | head -1)"
+    retry_list="$(strip_php_comments "$root/$CLIENT" | grep -E '\$orderRetryCodes[[:space:]]*=' | sed -n '1p')"
 
     [ -n "$retry_list" ] || { echo "$CLIENT declares no list of retryable order-report statuses"; return 1; }
 
