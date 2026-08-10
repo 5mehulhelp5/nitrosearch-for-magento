@@ -9,7 +9,27 @@ this repository deliberately declares it nowhere else.
 
 ## [Unreleased]
 
-Nothing yet.
+## [1.0.1] — 2026-08-10
+
+### Fixed
+
+- **Stores that do not price in dollars, euros or pounds were reporting the wrong revenue.** An
+  order's value was scaled as though every currency had two decimal places. A store pricing in yen —
+  which has no minor unit at all — reported **one hundred times** its real revenue; a store pricing
+  in Kuwaiti dinar, Bahraini dinar, Jordanian dinar, Omani rial or Tunisian dinar reported a tenth
+  of it, and lost the third decimal on the way. Every order, since the module was first released.
+  The value is now scaled by the currency's own definition.
+
+- **Orders that came from a search are no longer thrown away when the service is busy or briefly
+  unavailable.** The module treated any refusal as final, so an order placed while the store was
+  still being verified, or while the service was rate-limiting a burst of sales, was dropped and
+  never counted. During a rush, every order past the per-minute limit was discarded — so **the
+  busiest hour reported the least revenue**. Reports are now retried with widening gaps, and one
+  that truly cannot be delivered is recorded rather than lost silently.
+
+- **Revenue can no longer be counted twice.** The timestamp identifying an order was recalculated
+  on each attempt, so a retry across a daylight-saving change looked like a second, different order.
+  It is fixed when the order is queued and re-sent unchanged.
 
 ## [1.0.0] — 2026-08-08
 
@@ -88,5 +108,6 @@ visible in the code.
   its unique key, and on the wire the hashed order reference became a constant that
   deduped every order a store ever attributed into one.
 
-[Unreleased]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.0.1...HEAD
+[1.0.1]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/NitroSearch/nitrosearch-for-magento/releases/tag/1.0.0
