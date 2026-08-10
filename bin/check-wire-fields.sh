@@ -40,6 +40,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 pass() { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
 
+# Boolean grep that reads its input to the end. NEVER `... | grep -q` in a script
+# with `pipefail` set — `grep -q` exits on the first match, SIGPIPEs the producer,
+# and the 141 becomes the pipeline's status, so a MATCH is reported as a failure.
+# It is a race against the pipe buffer, which is why it survives review: the same
+# command on the same tree passes and fails on alternate runs. The producers below
+# are small enough to usually win that race, and "usually" is the whole problem.
+qgrep() { grep -c "$@" >/dev/null; }
+
 # Fields the serializer deliberately does not send, each with the reason it is a
 # decision rather than an oversight. Anything not here must be used.
 #
@@ -102,12 +110,12 @@ check_tree() {
     local chain
     chain="$(awk '/\$builder = ItemBuilder::product\(/{grab=1} grab{print; if (/;[[:space:]]*$/) exit}' "$serializer")"
 
-    printf '%s' "$chain" | grep -q 'ItemBuilder::product(' \
+    printf '%s' "$chain" | qgrep 'ItemBuilder::product(' \
         || { echo "could not find the upsert builder chain in the serializer — this guard cannot see what it claims to check"; return 1; }
 
     local field
     for field in visible inStock; do
-        printf '%s' "$chain" | grep -q -- "->${field}(" \
+        printf '%s' "$chain" | qgrep -- "->${field}(" \
             || { echo "${field} is not in the unconditional builder chain — the wire reads it as FALSE when absent, so a skipped condition makes a product unreachable rather than merely plainer"; return 1; }
     done
 

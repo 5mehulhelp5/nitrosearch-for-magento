@@ -38,6 +38,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 fail() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
+
+# ⚠ DECLARE THE INTERPRETER, DO NOT ASSUME IT. The checks below parse JSON with
+# python3. When it is merely ABSENT the parse fails, and an undeclared dependency
+# then reads as a defect in the module — a sibling check spent a build reporting
+# "malformed XML in etc/db_schema.xml" about a file that was perfectly well formed,
+# because nothing had parsed it at all. GitHub's runners ship python3, so CI cannot
+# see this; a bare php container does. Fail on the real cause instead.
+command -v python3 >/dev/null 2>&1 || fail "python3 is required by this check (it parses JSON) and is not on PATH — this is a missing tool, not a problem with the module"
+
 pass() { printf '\033[1;32m✓ %s\033[0m\n' "$*"; }
 
 check_tree() {

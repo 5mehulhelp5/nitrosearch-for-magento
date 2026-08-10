@@ -92,6 +92,32 @@ strip_comments() { awk '{ gsub(/<!--.*-->/, ""); if (/<!--/) { sub(/<!--.*/, "")
 # only TALKS about the rule and condemning one that follows it.
 strip_php_comments() { sed -e 's://.*::' -e 's:#.*::' -e 's:^[[:space:]]*\*.*::' -e 's:^[[:space:]]*/\*.*::' "$1" 2>/dev/null; }
 
+# ── Why nothing here pipes into `grep -q` ────────────────────────────────────
+#
+# `PRODUCER | grep -q PATTERN` is unsafe in any script that sets `pipefail`, and
+# this one does. `grep -q` exits the instant it matches, which closes the pipe
+# while the producer is still writing; the producer is killed by SIGPIPE and
+# exits 141, and `pipefail` reports that as the pipeline's status. The pipeline
+# therefore fails **because the pattern matched**, and `if ! ...` inverts a match
+# into a failure.
+#
+# It is a race against the pipe buffer, so the same command on the same tree
+# gives PIPESTATUS=(141 0) on one run and (0 0) on the next. A small producer
+# usually wins, which is why the short `printf` blocks here were fine for months
+# while the `sed` and `awk` producers over whole files were not.
+#
+# **This shipped `1.0.1` on red CI**, and the way it failed is worth keeping: the
+# self-test reported *"the guard fired on the wrong thing"* for the `× 100`
+# mutation. It was right. The guard had fired — on the order-id check, which was
+# losing the race — so the self-test caught the plumbing rather than the mutation
+# it was actually testing. The accusation the guard printed was against correct
+# code.
+#
+# `qgrep` reads its input to the end. It cannot race, and on files this size the
+# extra reading costs nothing. Pass it the flags you would have passed `grep`
+# (`-E`, `-F`, `-v`) — anything but `-q`.
+qgrep() { grep -c "$@" >/dev/null; }
+
 # One method's body, comments already gone. Found by NAME, and callers that care about
 # behaviour rather than naming (the send path) locate the name first by what it calls.
 method_block() {
@@ -131,10 +157,10 @@ check_tree() {
     [ -f "$root/etc/events.xml" ] \
         || { echo "no etc/events.xml — an order observer registered only in an area file misses whichever area the merchant's checkout actually uses"; return 1; }
 
-    strip_comments "$root/etc/events.xml" | grep -q 'sales_order_save_after' \
+    strip_comments "$root/etc/events.xml" | qgrep 'sales_order_save_after' \
         || { echo "etc/events.xml does not observe sales_order_save_after"; return 1; }
 
-    strip_comments "$root/etc/events.xml" | grep -q 'ReportPlacedOrder' \
+    strip_comments "$root/etc/events.xml" | qgrep 'ReportPlacedOrder' \
         || { echo "etc/events.xml observes the event but not with the report observer"; return 1; }
 
     # 2. And NOT area-scoped anywhere. A duplicate registration in an area file would
@@ -142,7 +168,7 @@ check_tree() {
     local f
     for f in "$root/etc/"*/events.xml; do
         [ -f "$f" ] || continue
-        if strip_comments "$f" | grep -q 'sales_order_'; then
+        if strip_comments "$f" | qgrep 'sales_order_'; then
             echo "an area-scoped events.xml registers a sales_order_ event ($f) — order placement belongs at global scope"
             return 1
         fi
@@ -152,7 +178,7 @@ check_tree() {
     #    an entity id of 0.
     for f in "$root/etc/events.xml" "$root/etc/"*/events.xml; do
         [ -f "$f" ] || continue
-        if strip_comments "$f" | grep -q 'sales_order_place_after'; then
+        if strip_comments "$f" | qgrep 'sales_order_place_after'; then
             echo "sales_order_place_after is observed in $f — it runs BEFORE the order row exists, so every report would carry order_id 0"
             return 1
         fi
@@ -167,7 +193,7 @@ check_tree() {
     #    comparison rather than one literal spelling, so renaming a variable on a
     #    correct tree does not fail it.
     strip_php_comments "$root/$MODEL" \
-        | grep -qE '\$[A-Za-z_]*[Oo]rder[A-Za-z_]*[[:space:]]*(<=[[:space:]]*0|<[[:space:]]*1)' \
+        | qgrep -E '\$[A-Za-z_]*[Oo]rder[A-Za-z_]*[[:space:]]*(<=[[:space:]]*0|<[[:space:]]*1)' \
         || { echo "$MODEL never refuses an order with no entity id — every report would carry the same order_ref and the service would fold them into one"; return 1; }
 
     # 5. THE MONEY. Both halves, because either alone is satisfiable by a tree that
@@ -175,12 +201,12 @@ check_tree() {
     #    exponent must actually be consulted. The table is generated from the same
     #    source the service uses and is already vendored in this module for catalogue
     #    prices — this line was the one written from memory.
-    if strip_php_comments "$root/$MODEL" | grep -qE '(\*[[:space:]]*100([^0-9]|$)|(^|[^0-9])100[[:space:]]*\*)'; then
+    if strip_php_comments "$root/$MODEL" | qgrep -E '(\*[[:space:]]*100([^0-9]|$)|(^|[^0-9])100[[:space:]]*\*)'; then
         echo "$MODEL multiplies by 100 — right for dollars, wrong for JPY (100x) and KWD (a tenth); the vendored exponent table exists for exactly this"
         return 1
     fi
 
-    strip_php_comments "$root/$MODEL" | grep -q 'CurrencyExponents::for(' \
+    strip_php_comments "$root/$MODEL" | qgrep 'CurrencyExponents::for(' \
         || { echo "$MODEL never consults CurrencyExponents — minor units cannot be derived without the currency's exponent"; return 1; }
 
     # 6. THE CLASSIFICATION OF THE SERVICE'S ANSWER. The blanket "every 4xx is
@@ -192,7 +218,7 @@ check_tree() {
 
     [ -n "$report_block" ] || { echo "$CLIENT has no reportOrder() — nothing sends an order report"; return 1; }
 
-    if printf '%s\n' "$report_block" | grep -qE '400[^0-9].*500|500[^0-9].*400'; then
+    if printf '%s\n' "$report_block" | qgrep -E '400[^0-9].*500|500[^0-9].*400'; then
         echo "$CLIENT treats a whole 4xx range as one answer — 429 (throttled), 409 (not verified yet) and 423 (suspended) are states a shop comes back from, and deleting those reports loses the merchant real revenue"
         return 1
     fi
@@ -205,21 +231,21 @@ check_tree() {
 
     [ -n "$retry_list" ] || { echo "$CLIENT declares no list of retryable order-report statuses"; return 1; }
 
-    printf '%s\n' "$report_block" | grep -qF 'orderRetryCodes' \
+    printf '%s\n' "$report_block" | qgrep -F 'orderRetryCodes' \
         || { echo "$CLIENT declares retryable statuses but reportOrder() never consults them"; return 1; }
 
     local code
     for code in 401 408 409 423 425 429; do
-        if ! printf '%s\n' "$retry_list" | grep -qE "(^|[^0-9])$code([^0-9]|$)"; then
+        if ! printf '%s\n' "$retry_list" | qgrep -E "(^|[^0-9])$code([^0-9]|$)"; then
             echo "$CLIENT does not treat HTTP $code as retryable — that answer means 'ask again', and dropping the report there costs one order's revenue permanently"
             return 1
         fi
     done
 
-    printf '%s\n' "$report_block" | grep -qE '(>=[[:space:]]*500|>[[:space:]]*499)' \
+    printf '%s\n' "$report_block" | qgrep -E '(>=[[:space:]]*500|>[[:space:]]*499)' \
         || { echo "$CLIENT does not retry a 5xx order report"; return 1; }
 
-    printf '%s\n' "$report_block" | grep -qE '\$status[[:space:]]*===[[:space:]]*0' \
+    printf '%s\n' "$report_block" | qgrep -E '\$status[[:space:]]*===[[:space:]]*0' \
         || { echo "$CLIENT does not retry a transport failure (which arrives as status 0, not as a 5xx)"; return 1; }
 
     # 7. NO NETWORK ON THE CHECKOUT PATH, ENFORCED BY CONSTRUCTION RATHER THAN BY
@@ -242,7 +268,7 @@ check_tree() {
         [ -n "$block" ] || { echo "$MODEL has no ${checkout_method}() — the checkout path this guard is meant to police is not where it is looked for"; return 1; }
 
         for token in 'Client' 'curl_' 'file_get_contents' 'fsockopen' 'stream_socket' 'reportOrder('; do
-            if printf '%s\n' "$block" | grep -qF "$token"; then
+            if printf '%s\n' "$block" | qgrep -F "$token"; then
                 echo "$MODEL::${checkout_method}() references '$token' — that is network on a shopper's own checkout request, which no exception handler can make safe"
                 return 1
             fi
@@ -260,7 +286,7 @@ check_tree() {
 
     flush_block="$(method_block "$root/$MODEL" "$flush_method")"
 
-    printf '%s\n' "$flush_block" | grep -qF "'done'" \
+    printf '%s\n' "$flush_block" | qgrep -F "'done'" \
         || { echo "$MODEL::${flush_method}() does not read 'done' from the client's answer — a retryable failure would be deleted as if it had been accepted"; return 1; }
 
     # 9. `occurred_at` IS READ FROM THE ROW AND NEVER RE-DERIVED AT SEND TIME. It is
@@ -269,12 +295,12 @@ check_tree() {
     #    counted twice, silently, on exactly the orders that had to be retried. That is
     #    the opposite failure to the one retrying exists to fix, and the worse of the
     #    two. (A clock elsewhere in the file is fine: expiring stale rows needs one.)
-    if printf '%s\n' "$flush_block" | grep -qE '\b(gmdate|date|time|strtotime|mktime)[[:space:]]*\('; then
+    if printf '%s\n' "$flush_block" | qgrep -E '\b(gmdate|date|time|strtotime|mktime)[[:space:]]*\('; then
         echo "$MODEL::${flush_method}() derives a timestamp at send time — occurred_at must be a pure function of the stored row, or every retry double-counts the merchant's revenue"
         return 1
     fi
 
-    printf '%s\n' "$flush_block" | grep -qF 'occurred_at' \
+    printf '%s\n' "$flush_block" | qgrep -F 'occurred_at' \
         || { echo "$MODEL::${flush_method}() never reads occurred_at from the row"; return 1; }
 
     # 10. THE QUEUE GIVES UP BEFORE THE SERVICE STARTS REWRITING TIMESTAMPS. Past its
