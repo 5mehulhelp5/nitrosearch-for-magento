@@ -37,6 +37,16 @@ final class Client
     /** @var string this shop's canonical base URL, as the service will see it */
     private $siteUrl;
 
+    /**
+     * HTTP statuses on an order report that mean "come back and ask again" rather
+     * than "this is the answer". Every 5xx is retryable too, and so is a transport
+     * failure, which has no status at all — both are tested separately in
+     * {@see reportOrder()} rather than enumerated here.
+     *
+     * @var array<int, int>
+     */
+    private static $orderRetryCodes = array(401, 408, 409, 423, 425, 429);
+
     public function __construct(Settings $settings, $siteUrl)
     {
         $this->settings = $settings;
@@ -298,20 +308,71 @@ final class Client
      * usage data, and a merchant who declined to share it must not have their revenue
      * reported either — the toggle would otherwise mean less than it says.
      *
-     * A 4xx RETURNS TRUE, WHICH LOOKS WRONG AND IS NOT. The caller deletes a report
-     * it considers handled, and a 4xx means the payload is malformed or this shop is
-     * not entitled to send it — neither improves by being retried. Returning false
-     * there would park a poison row at the head of the queue forever and block every
-     * later order behind it. Only a transport failure or a 5xx earns another attempt.
+     * `occurred_at` IS PASSED THROUGH VERBATIM AND NEVER DERIVED HERE. It is half of
+     * the key the service dedupes on, so a value recomputed at send time would land a
+     * retry as a SECOND conversion row for the same order rather than colliding with
+     * the first — the merchant's revenue counted twice, silently, and only on the
+     * orders unlucky enough to need retrying. The caller stamps it once, at order
+     * placement, and stores the literal string; see {@see \NitroSearch\Search\Model\OrderAttribution}.
      *
-     * @param array<string, mixed> $report
+     * ⚠ IT RETURNS A TRI-STATE, NOT A BOOLEAN, AND THAT IS A CORRECTION MADE ON
+     * 2026-08-10 RATHER THAN A PREFERENCE. Until this change the last thing this
+     * method did was:
      *
-     * @return bool whether this report is finished with, one way or another
+     *     if (!$res['ok'] && $res['status'] >= 400 && $res['status'] < 500) {
+     *         return true;   // "handled" — the caller then DELETES the report
+     *     }
+     *
+     * with a comment reasoning that a 4xx is never worth retrying because the payload
+     * is wrong or the shop is not entitled. That is exactly right for the refusals it
+     * was written for — 400, 422, 403, 404 — and wrong for three the service actually
+     * answers with, all three of them states a shop comes back from on its own:
+     *
+     *   429  throttled. POST /v1/orders accepts sixty reports a minute per store, so a
+     *        shop bursting past one order a second loses EVERY order over the line.
+     *        The busiest hour of the year reported the least revenue — and it is that
+     *        hour's number a merchant reads when deciding whether search is worth
+     *        paying for.
+     *   409  the store is not verified YET. Verification happens out of band and
+     *        usually lands minutes later; every order placed in that window was
+     *        thrown away.
+     *   423  the account is suspended. A billing state, and one merchants come back
+     *        from within days.
+     *
+     * Each one cost exactly one order, permanently, with no error, no log line and no
+     * row left anywhere to say a number was ever missing. 408 and 425 join the list
+     * because both say "ask again" in so many words, and a proxy in front of a
+     * merchant's own egress produces them as readily as the service does.
+     *
+     *   done   any 2xx (including the 202 that says {accepted:false,reason:'disabled'}),
+     *          and every 4xx not named below — a payload the service refuses on its
+     *          merits does not improve by being re-sent, and a poison report must
+     *          never park itself at the head of the queue and block every later order
+     *          behind it
+     *   retry  401, 408, 409, 423, 425, 429, every 5xx, and a transport failure
+     *          (which has no status at all and is reported as 0)
+     *
+     * 401 IS RETRYABLE HERE AND WOULD NOT BE ON A CALLER THAT CACHED ITS HEADERS.
+     * {@see signed()} mints a fresh signature — and a fresh single-use nonce — inside
+     * every attempt, so the next attempt is a genuinely different signed request
+     * rather than a replay of the one just refused.
+     *
+     * @param array{order_id: int, value_cents: int, currency: string, occurred_at: string, item_ids?: array<int, string>, q?: string} $report
+     *
+     * @return array{done: bool, retry: bool, status: int, error: string}
      */
     public function reportOrder(array $report)
     {
+        // NOT `done`, DELIBERATELY, AND THIS IS THE ONE PLACE THIS CONNECTOR PARTS
+        // COMPANY WITH THE ONE WHOSE QUEUE IS ITS SCHEDULER. There a report that
+        // cannot be sent is a job argument and dropping it is all that is on offer;
+        // here it is a table row, and the states this branch tests are temporary —
+        // credentials mid-reissue, a merchant who will switch sharing back on. Calling
+        // it done would delete a queue of real revenue for a condition that clears,
+        // which is the failure this whole method was rewritten to stop. The rows wait,
+        // and age out on their own if the condition never does.
         if (!$this->settings->isConnected() || !$this->settings->get('SHARE_SEARCH_DATA', true)) {
-            return false;
+            return array('done' => false, 'retry' => true, 'status' => 0, 'error' => 'not reporting');
         }
 
         $itemIds = array();
@@ -330,11 +391,18 @@ final class Client
 
         $res = $this->signed('POST', '/v1/orders', $body, 10);
 
-        if (!$res['ok'] && $res['status'] >= 400 && $res['status'] < 500) {
-            return true;
+        $status = (int) $res['status'];
+        $error = (string) $res['error'];
+
+        if (!empty($res['ok'])) {
+            return array('done' => true, 'retry' => false, 'status' => $status, 'error' => '');
         }
 
-        return $res['ok'];
+        if ($status === 0 || $status >= 500 || in_array($status, self::$orderRetryCodes, true)) {
+            return array('done' => false, 'retry' => true, 'status' => $status, 'error' => $error);
+        }
+
+        return array('done' => true, 'retry' => false, 'status' => $status, 'error' => $error);
     }
 
     /**
