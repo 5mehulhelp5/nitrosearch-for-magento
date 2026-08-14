@@ -9,6 +9,16 @@ this repository deliberately declares it nowhere else.
 
 ## [Unreleased]
 
+## [Unreleased]
+
+### Fixed
+
+- **Disconnect told you the opposite of what it had just done.** It reported that change detection
+  was still installed and asked you to run `bin/magento nitrosearch:unsubscribe` — while disconnect
+  had already removed it, as its first action. The command would have found nothing to do. The
+  message now says what actually happened, and says something different in the one case where the
+  removal genuinely failed, which it previously could not tell apart.
+
 ## [1.0.1] — 2026-08-10
 
 ### Fixed
