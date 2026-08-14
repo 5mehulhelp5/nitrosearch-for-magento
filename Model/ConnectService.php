@@ -177,15 +177,23 @@ class ConnectService
      * removes the whole config group — including keys a newer version introduced —
      * rather than a list someone has to remember to extend.
      */
-    public function disconnect(): void
+    public function disconnect(): string
     {
         // TRIGGERS FIRST, THEN CREDENTIALS. Reversing this loses the ability to
         // report a failure to remove them: once the settings are purged the module no
         // longer knows it was ever connected, and a merchant left with orphaned
         // triggers has nothing anywhere telling them so.
-        $this->subscription->remove();
+        //
+        // ⚠ AND THE ANSWER IS NOW RETURNED, which is what that ordering was FOR. It
+        // was discarded until 2026-08-11, so the ability the comment describes was
+        // preserved and then thrown away one line later — the caller could not tell a
+        // clean removal from a failed one, and told every merchant the same thing
+        // either way.
+        $error = $this->subscription->remove();
 
         $this->settings->purge();
+
+        return $error;
     }
 
     /**
