@@ -26,7 +26,7 @@ namespace NitroSearch;
  * pretending to a multi-store support it does not have. Surfacing a limit beats
  * silently applying one shop's settings to another's.
  */
-final class Settings
+final class Settings implements SettingsReader
 {
     /** The `code` column value for every row this module owns. */
     const CODE = 'module_nitrosearch';
@@ -90,6 +90,27 @@ final class Settings
         // which an OpenCart merchant could decline. The other two connectors had
         // this from their first release.
         'SHARE_SEARCH_DATA' => true,
+
+        // ── Storefront behaviour, merchant-settable since the appearance fields ──
+        //
+        // Both were HARDCODED in Storefront\Widget and sent on every page load with
+        // the merchant having no say. The defaults below reproduce exactly what
+        // shipped in 1.0.x, so an existing store sees no change on update.
+        'RESULTS_TAKEOVER' => true,
+        // "Powered by NitroSearch" on the storefront. OFF: a credit on a merchant's
+        // shop is theirs to place.
+        'SHOW_BADGE' => false,
+
+        // ── Appearance (see Support\Design) ──
+        //
+        // Stored as PRESET NAMES, never as token values, so what "compact" means can
+        // change in a later release without migrating any store's stored config.
+        'DESIGN_LOOK' => 'roomy',
+        'DESIGN_SCHEME' => 'light',
+        'DESIGN_CORNERS' => 'rounded',
+        'DESIGN_ACCENT' => '',
+        'DESIGN_WIDTH' => 'auto',
+        'DESIGN_FILTERS' => 'auto',
         'PRODUCT_LIMIT' => 0,
         'PRODUCT_COUNT' => 0,
         'AT_LIMIT' => false,

@@ -11,6 +11,7 @@
 namespace NitroSearch\Storefront;
 
 use NitroSearch\Settings;
+use NitroSearch\Support\Design;
 
 /**
  * `window.NitroSearchConfig` plus the loader script, for the shop's `<head>`.
@@ -97,7 +98,7 @@ final class Widget
             // Results-page takeover on `product/search`. On by default, matching the
             // other platforms; there is no merchant toggle in this version, and when
             // one arrives it belongs here rather than in either adapter.
-            'results' => true,
+            'results' => (bool) $this->settings->get('RESULTS_TAKEOVER'),
             // OPENCART INDEXES PRODUCTS ONLY. Sending this false is not a formality:
             // the widget issues a SECOND engine query per keystroke when content is
             // on, and a shop with no indexed pages would pay for every one of them
@@ -107,7 +108,7 @@ final class Widget
             // must be their choice, and this module has no screen on which to make
             // it yet — so the honest default is not to place one. The widget shows
             // the badge unless told otherwise, so this key cannot be omitted.
-            'badge' => false,
+            'badge' => (bool) $this->settings->get('SHOW_BADGE'),
             // The merchant's opt-out for the anonymous usage beacon, and THIS KEY
             // CANNOT BE OMITTED EITHER. The widget declines to emit only on an
             // explicit `cfg.analytics === false`; an absent key is `undefined`,
@@ -120,6 +121,21 @@ final class Widget
             // inferred from silence.
             'analytics' => (bool) $this->settings->get('SHARE_SEARCH_DATA'),
         );
+
+        // APPEARANCE. `theme` always carries the four density tokens because a look
+        // is a complete set; `layout` is omitted entirely when the merchant has moved
+        // nothing off its default, since an empty key is noise every page load parses.
+        $design = new Design($this->settings);
+
+        $theme = $design->theme();
+        if ($theme !== array()) {
+            $config['theme'] = $theme;
+        }
+
+        $layout = $design->layout();
+        if ($layout !== array()) {
+            $config['layout'] = $layout;
+        }
 
         // THE LOCALE IS NOT ONLY A TRANSLATION SWITCH — the widget formats prices
         // with it, so withholding it leaves every shop on generic English number
