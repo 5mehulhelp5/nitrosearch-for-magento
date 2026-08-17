@@ -77,6 +77,92 @@
                         off and the storefront widget stops reporting entirely.
                     </comment>
                 </field>
+
+                <!--
+                  ═══ Appearance ═══
+                  STORED AS PRESET NAMES, resolved to CSS custom-property values by
+                  NitroSearch\Support\Design on the way out. The widget never learns a
+                  preset name, so what "compact" means can improve in a later release
+                  without any store's saved configuration having to change.
+
+                  Every `<select>` below takes its options from Design::choices() via
+                  one shared source model — the list is not written out again here.
+                -->
+                <field id="results_takeover" translate="label comment" type="select" sortOrder="20"
+                       showInDefault="1">
+                    <label>Use NitroSearch for the search results page</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <config_path>nitrosearch/credentials/results_takeover</config_path>
+                    <comment>
+                        Yes replaces your theme's search results page with instant, filterable
+                        results. No keeps your theme's page and uses NitroSearch only for the
+                        drop-down while a shopper types.
+                    </comment>
+                </field>
+
+                <field id="show_badge" translate="label comment" type="select" sortOrder="30"
+                       showInDefault="1">
+                    <label>Show "Powered by NitroSearch"</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <config_path>nitrosearch/credentials/show_badge</config_path>
+                    <comment>
+                        Off by default — a credit on your storefront is your choice, not ours.
+                    </comment>
+                </field>
+
+                <field id="design_look" translate="label comment" type="select" sortOrder="40"
+                       showInDefault="1">
+                    <label>Result density</label>
+                    <source_model>NitroSearch\Search\Model\Config\Source\Look</source_model>
+                    <config_path>nitrosearch/credentials/design_look</config_path>
+                    <comment>How much room each result takes in the drop-down.</comment>
+                </field>
+
+                <field id="design_scheme" translate="label comment" type="select" sortOrder="50"
+                       showInDefault="1">
+                    <label>Colour scheme</label>
+                    <source_model>NitroSearch\Search\Model\Config\Source\Scheme</source_model>
+                    <config_path>nitrosearch/credentials/design_scheme</config_path>
+                    <comment>
+                        "Match the shopper's device" follows their own light or dark setting, decided
+                        in the browser at the moment the panel is drawn.
+                    </comment>
+                </field>
+
+                <field id="design_corners" translate="label" type="select" sortOrder="60"
+                       showInDefault="1">
+                    <label>Corners</label>
+                    <source_model>NitroSearch\Search\Model\Config\Source\Corners</source_model>
+                    <config_path>nitrosearch/credentials/design_corners</config_path>
+                </field>
+
+                <field id="design_accent" translate="label comment" type="text" sortOrder="70"
+                       showInDefault="1">
+                    <label>Accent colour</label>
+                    <backend_model>NitroSearch\Search\Model\Config\Backend\Accent</backend_model>
+                    <config_path>nitrosearch/credentials/design_accent</config_path>
+                    <comment><![CDATA[
+                        A hex colour such as <code>#2563eb</code>, used for prices, the selected
+                        result and the buttons inside the panel. Leave empty for the default.
+                        Label text on the accent is chosen automatically for contrast, so a pale
+                        accent gets dark text rather than an unreadable white. Anything that is not
+                        a hex colour is ignored rather than stored.
+                    ]]></comment>
+                </field>
+
+                <field id="design_width" translate="label" type="select" sortOrder="80"
+                       showInDefault="1">
+                    <label>Panel width</label>
+                    <source_model>NitroSearch\Search\Model\Config\Source\Width</source_model>
+                    <config_path>nitrosearch/credentials/design_width</config_path>
+                </field>
+
+                <field id="design_filters" translate="label" type="select" sortOrder="90"
+                       showInDefault="1">
+                    <label>Filters</label>
+                    <source_model>NitroSearch\Search\Model\Config\Source\Filters</source_model>
+                    <config_path>nitrosearch/credentials/design_filters</config_path>
+                </field>
             </group>
         </section>
     </system>

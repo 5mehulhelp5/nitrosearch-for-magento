@@ -9,6 +9,22 @@ this repository deliberately declares it nowhere else.
 
 ## [Unreleased]
 
+### Added
+
+- **Appearance and storefront settings** in Stores → Configuration → Services → NitroSearch. Result
+  density, colour scheme (light, dark, or match the shopper's device), corner style, accent colour,
+  panel width and where filters appear — plus whether NitroSearch takes over the search results page
+  and whether the "Powered by" credit is shown.
+
+  The last two were previously fixed in code and sent on every page load with no way to change them.
+  **Their defaults are unchanged**, so an existing store sees exactly what it saw before.
+
+  Settings are stored as preset names rather than raw values, so what "compact" means can improve in
+  a later release without any store's saved configuration having to change. The accent's label text
+  is chosen automatically for contrast, so a pale accent gets dark text rather than an unreadable
+  white — and an accent that is not a hex colour is now **refused with an explanation** instead of
+  being saved and then quietly ignored on the storefront.
+
 ## [1.0.2] — 2026-08-15
 
 ### Fixed
