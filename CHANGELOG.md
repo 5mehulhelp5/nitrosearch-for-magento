@@ -9,6 +9,27 @@ this repository deliberately declares it nowhere else.
 
 ## [Unreleased]
 
+### Added
+
+- **The search panel now speaks your store view's language.** The panel a shopper sees —
+  its filters, its "Add to cart", its result counts — was English on every store,
+  whatever locale the view was set to, because it is drawn by a shared component that
+  carries no translations of its own. It now receives them from the module, in 23
+  languages: Czech, Danish, Dutch, English (UK), Finnish, French, German, Greek,
+  Indonesian, Italian, Japanese, Norwegian, Polish, Portuguese (Portugal and Brazil),
+  Romanian, Russian, Spanish, Swedish, Turkish, Ukrainian, Vietnamese and Chinese
+  (Simplified).
+
+  Result counts agree with the language's own grammar rather than adding an "s" —
+  German says "1 Produkt gefunden" and "14 Produkte gefunden", and Romanian, Russian,
+  Polish and Czech each choose between three forms depending on the number.
+
+  Nothing to configure. A store view set to a locale not on that list is unchanged, and
+  one set to a regional variant reads the closest language we publish — a de_AT or
+  de_CH view reads German. Chinese (Simplified) is matched from `zh_Hans_CN`;
+  Traditional Chinese is left in English rather than being shown a script it does not
+  use.
+
 ## [1.1.0] — 2026-08-17
 
 ### Added

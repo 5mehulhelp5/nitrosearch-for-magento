@@ -147,10 +147,17 @@ final class Widget
             $config['locale'] = $this->locale;
         }
 
-        // NO `labels` KEY, DELIBERATELY. The widget's built-in strings are English
-        // and this module has no gettext catalogues, so there is nothing to send —
-        // and sending untranslated English under a non-English locale would make
-        // the widget select plurals by that locale's rules for English text.
+        // The panel's own strings in the store view's language. This block used to
+        // say there was nothing to send, and gave the right reason: sending
+        // untranslated English under a non-English locale would have the widget
+        // select plurals by that locale's rules for English text. Labels::forLocale
+        // returns an empty array rather than English for exactly that case, so an
+        // absent key still means "we have nothing better than the bundle's own
+        // text" and never "we forgot".
+        $labels = Labels::forLocale($this->locale);
+        if ($labels !== array()) {
+            $config['labels'] = $labels;
+        }
 
         // The anonymous usage beacon. Omitted entirely until the service has issued
         // a token, which it does only for a verified store — the widget no-ops
@@ -161,7 +168,7 @@ final class Widget
             $config['events'] = array('url' => $eventsUrl, 'token' => $eventsToken);
         }
 
-        // NO `cart` KEY, DELIBERATELY. The widget derives OpenCart's add-to-cart
+        // NO `cart` KEY, DELIBERATELY. The widget derives the add-to-cart
         // route from the page itself — `<base href>` for the shop url, and whether
         // any internal link carries `language=` to tell the two majors' route forms
         // apart. Both were verified against real stores on both majors. Pinning it
