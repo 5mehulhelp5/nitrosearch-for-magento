@@ -9,6 +9,8 @@ this repository deliberately declares it nowhere else.
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-08-18
+
 ### Added
 
 - **The search panel now speaks your store view's language.** The panel a shopper sees —
@@ -158,6 +160,7 @@ visible in the code.
   deduped every order a store ever attributed into one.
 
 [Unreleased]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.1.0...HEAD
+[1.2.0]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.0.2...1.1.0
 [1.0.2]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/NitroSearch/nitrosearch-for-magento/compare/1.0.0...1.0.1
